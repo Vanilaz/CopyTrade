@@ -46,11 +46,11 @@ function broadcastDashboard(type, data) {
 function getStatus() {
   const masterList = [];
   masters.forEach((m, id) => {
-    masterList.push({ id, connected: !m.socket.destroyed, lastHeartbeat: m.lastHeartbeat });
+    masterList.push({ id, connected: !m.socket.destroyed, lastHeartbeat: m.lastHeartbeat, info: m.info });
   });
   const slaveList = [];
   slaves.forEach((s, id) => {
-    slaveList.push({ id, subscribedTo: s.subscribedTo, connected: !s.socket.destroyed, lastHeartbeat: s.lastHeartbeat });
+    slaveList.push({ id, subscribedTo: s.subscribedTo, connected: !s.socket.destroyed, lastHeartbeat: s.lastHeartbeat, info: s.info });
   });
   return { masters: masterList, slaves: slaveList, signalCount: signalLog.length };
 }
@@ -155,12 +155,25 @@ const tcpServer = net.createServer((socket) => {
 
     // ─── Heartbeat ───
     if (msg.action === 'heartbeat') {
+      let clientObj = null;
       if (clientRole === 'master' && masters.has(clientId)) {
-        masters.get(clientId).lastHeartbeat = Date.now();
+        clientObj = masters.get(clientId);
       } else if (clientRole === 'slave' && slaves.has(clientId)) {
-        slaves.get(clientId).lastHeartbeat = Date.now();
+        clientObj = slaves.get(clientId);
       }
+
+      if (clientObj) {
+        clientObj.lastHeartbeat = Date.now();
+        // Update financial metrics
+        if (msg.balance !== undefined) clientObj.info.balance = msg.balance;
+        if (msg.equity !== undefined) clientObj.info.equity = msg.equity;
+        if (msg.marginLevel !== undefined) clientObj.info.marginLevel = msg.marginLevel;
+        if (msg.floatingPnL !== undefined) clientObj.info.floatingPnL = msg.floatingPnL;
+        if (msg.positions !== undefined) clientObj.info.positions = msg.positions;
+      }
+
       sendMessage(socket, { action: 'heartbeat', ts: Date.now() });
+      broadcastDashboard('status', getStatus()); // broadcast updated metrics to UI
       return;
     }
 
@@ -179,7 +192,7 @@ const tcpServer = net.createServer((socket) => {
         price: msg.price,
         fillPrice: msg.fp || msg.price,
         ticket: msg.ticket,
-        fillTimeMs: msg.ftMs,
+        fillTimeMs: 0, // Removed raw OS tick count to fix UI visual bug
       };
       signalLog.push(signalEntry);
       if (signalLog.length > CONFIG.maxSignalLog)

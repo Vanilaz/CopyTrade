@@ -425,9 +425,14 @@
                 <div class="stat-footer">Following strategies</div>
             </div>
             <div class="stat-box">
+                <div class="stat-title">💰 Total PnL (Open)</div>
+                <div class="stat-value" id="totalPnl">$0.00</div>
+                <div class="stat-footer" id="lastSignalTime">All connected accounts</div>
+            </div>
+            <div class="stat-box">
                 <div class="stat-title">⚡ Total Executions</div>
                 <div class="stat-value" id="signalCount">0</div>
-                <div class="stat-footer" id="lastSignalTime">No signals yet</div>
+                <div class="stat-footer">Today's executed trades</div>
             </div>
             <div class="stat-box">
                 <div class="stat-title">⏱️ System Uptime</div>
@@ -501,41 +506,74 @@
             ws.onerror = () => ws.close();
         }
 
+        function formatCurrency(val) {
+            if (val === undefined || val === null) return '—';
+            return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
+        }
+
         function updateStatus(status) {
             document.getElementById('masterCount').textContent = status.masters.length;
             document.getElementById('slaveCount').textContent = status.slaves.length;
             document.getElementById('signalCount').textContent = status.signalCount;
 
+            let totalFloatingPnl = 0;
+            status.slaves.forEach(s => {
+                if (s.info && s.info.floatingPnL) {
+                    totalFloatingPnl += s.info.floatingPnL;
+                }
+            });
+            const pnlEl = document.getElementById('totalPnl');
+            pnlEl.textContent = formatCurrency(totalFloatingPnl);
+            pnlEl.style.color = totalFloatingPnl > 0 ? 'var(--accent-success)' : (totalFloatingPnl < 0 ? 'var(--accent-danger)' : 'var(--text-primary)');
+
             const mastersEl = document.getElementById('mastersList');
             if (status.masters.length === 0) {
                 mastersEl.innerHTML = '<div class="empty-state"><div class="empty-emoji">📡</div>Waiting for Master</div>';
             } else {
-                mastersEl.innerHTML = status.masters.map(m => `
-                    <div class="list-item">
+                mastersEl.innerHTML = status.masters.map(m => {
+                    const margin = m.info && m.info.marginLevel ? m.info.marginLevel.toFixed(2) + '%' : '—';
+                    const activeP = m.info && m.info.positions !== undefined ? m.info.positions : '—';
+                    return `
+                    <div class="list-item" style="flex-wrap: wrap;">
                         <div class="avatar master">M</div>
                         <div class="item-info">
                             <div class="item-title">${escapeHtml(m.id)}</div>
                             <div class="item-sub">Ping: ${formatTime(m.lastHeartbeat)}</div>
                         </div>
+                        <div class="item-stats" style="text-align:right; font-size:13px; margin-right:15px;">
+                            <div style="color:var(--text-secondary)">Margin: <span style="color:#fff">${margin}</span></div>
+                            <div style="color:var(--text-secondary)">Positions: <span style="color:#fff">${activeP}</span></div>
+                        </div>
                         <div class="status-dot ${m.connected ? 'online' : 'offline'}"></div>
                     </div>
-                `).join('');
+                `}).join('');
             }
 
             const slavesEl = document.getElementById('slavesList');
             if (status.slaves.length === 0) {
                 slavesEl.innerHTML = '<div class="empty-state"><div class="empty-emoji">⏳</div>Waiting for Slave</div>';
             } else {
-                slavesEl.innerHTML = status.slaves.map(s => `
-                    <div class="list-item">
+                slavesEl.innerHTML = status.slaves.map(s => {
+                    const balance = s.info && s.info.balance ? formatCurrency(s.info.balance) : '—';
+                    const equity = s.info && s.info.equity ? formatCurrency(s.info.equity) : '—';
+                    const pnl = s.info && s.info.floatingPnL ? s.info.floatingPnL : 0;
+                    const pnlColor = pnl > 0 ? 'var(--accent-success)' : (pnl < 0 ? 'var(--accent-danger)' : 'var(--text-primary)');
+                    const pnlFormatted = pnl === 0 && !s.info ? '—' : formatCurrency(pnl);
+                    return `
+                    <div class="list-item" style="flex-wrap: wrap;">
                         <div class="avatar slave">S</div>
                         <div class="item-info">
                             <div class="item-title">${escapeHtml(s.id)}</div>
                             <div class="item-sub">Follow: ${escapeHtml(s.subscribedTo || 'ALL')}</div>
                         </div>
+                        <div class="item-stats" style="text-align:right; font-size:13px; margin-right:15px; display:grid; grid-template-columns: 1fr 1fr; gap: 0 15px;">
+                            <div style="color:var(--text-secondary); text-align:left;">Bal: <span style="color:#fff">${balance}</span></div>
+                            <div style="color:var(--text-secondary); text-align:right;">Eq: <span style="color:#fff">${equity}</span></div>
+                            <div style="grid-column: 1 / -1; margin-top:2px; font-weight:600; color:${pnlColor}">PnL: ${pnlFormatted}</div>
+                        </div>
                         <div class="status-dot ${s.connected ? 'online' : 'offline'}"></div>
                     </div>
-                `).join('');
+                `}).join('');
             }
         }
 
