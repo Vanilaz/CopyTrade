@@ -63,6 +63,10 @@ int               g_posCount = 0;
 long              g_signaledPosIDs[];
 int               g_signaledCount = 0;
 
+//--- ★ FIX: Queue for failed signals (like closes) during server downtime
+TradeSignal       g_pendingSignals[];
+int               g_pendingCount = 0;
+
 //--- State
 bool              g_initialized = false;
 datetime          g_lastHeartbeat = 0;
@@ -244,8 +248,11 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
       CTLog(LOG_INFO, "📤 SIGNAL OPEN: " + OrderTypeToStr(sig.orderType) + " " +
             symbol + " " + DoubleToString(lots, 2) + " lots @ " + DoubleToString(price, 5));
 
-      // ★ FIX: Mark position as signaled
-      MarkPositionSignaled(posID);
+      // ★ FIX: Only mark as signaled IF successfully broadcasted
+      if(BroadcastSignal(sig))
+      {
+         MarkPositionSignaled(posID);
+      }
    }
    else if(entry == DEAL_ENTRY_OUT)
    {
@@ -255,6 +262,12 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
 
       CTLog(LOG_INFO, "📤 SIGNAL CLOSE: " + symbol + " " +
             DoubleToString(lots, 2) + " lots @ " + DoubleToString(price, 5));
+            
+      if(!BroadcastSignal(sig))
+      {
+         CTLog(LOG_WARN, "Enqueueing missed CLOSE signal");
+         EnqueueSignal(sig);
+      }
    }
    else if(entry == DEAL_ENTRY_INOUT)
    {
@@ -269,19 +282,25 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
       closeSig.symbol     = symbol;
       closeSig.lots       = lots;
       closeSig.price      = price;
-      BroadcastSignal(closeSig);
+      
+      if(!BroadcastSignal(closeSig))
+      {
+         CTLog(LOG_WARN, "Enqueueing missed REVERSE-CLOSE signal");
+         EnqueueSignal(closeSig);
+      }
 
       // Then open new direction
       sig.type = SIGNAL_OPEN;
       sig.orderType = (dtype == DEAL_TYPE_BUY) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
 
-      // ★ FIX: Mark position as signaled
-      MarkPositionSignaled(posID);
-
       CTLog(LOG_INFO, "📤 SIGNAL REVERSE: " + symbol);
+      
+      // ★ FIX: Only mark as signaled IF successfully broadcasted
+      if(BroadcastSignal(sig))
+      {
+         MarkPositionSignaled(posID);
+      }
    }
-
-   BroadcastSignal(sig);
 }
 
 //+------------------------------------------------------------------+
@@ -305,7 +324,11 @@ void ProcessPendingDelete(const MqlTradeTransaction &trans)
    sig.type       = SIGNAL_PENDING_DELETE;
    sig.ticket     = trans.order;
    sig.symbol     = trans.symbol;
-   BroadcastSignal(sig);
+   
+   if(!BroadcastSignal(sig))
+   {
+      EnqueueSignal(sig);
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -341,6 +364,9 @@ void OnTimer()
       g_lastCleanup = now;
       g_fileTransport.Cleanup();
    }
+
+   //--- ★ FIX: Safety Net for closes
+   CheckMissedCloses();
 
    //--- Update position snapshot
    SnapshotPositions();
@@ -390,9 +416,13 @@ void CheckModifications()
 
                CTLog(LOG_INFO, "📤 SIGNAL MODIFY: " + symbol +
                      " SL=" + DoubleToString(sl, 5) + " TP=" + DoubleToString(tp, 5));
-               BroadcastSignal(sig);
+                     
+               if(!BroadcastSignal(sig))
+               {
+                  EnqueueSignal(sig);
+               }
 
-               // Update snapshot
+               // Update snapshot (always update so we don't spam if retry succeeds later)
                g_positions[j].sl = sl;
                g_positions[j].tp = tp;
             }
@@ -430,7 +460,11 @@ void CheckPartialCloses()
 
             CTLog(LOG_INFO, "📤 SIGNAL PARTIAL CLOSE: " + g_positions[j].symbol +
                   " " + DoubleToString(closePercent, 1) + "%");
-            BroadcastSignal(sig);
+                  
+            if(!BroadcastSignal(sig))
+            {
+               EnqueueSignal(sig);
+            }
 
             g_positions[j].lots = currentLots;
          }
@@ -439,9 +473,56 @@ void CheckPartialCloses()
 }
 
 //+------------------------------------------------------------------+
+//| Add signal to pending queue if broadcast fails                    |
+//+------------------------------------------------------------------+
+void EnqueueSignal(const TradeSignal &sig)
+{
+   for(int i = 0; i < g_pendingCount; i++)
+   {
+      if(g_pendingSignals[i].ticket == sig.ticket && g_pendingSignals[i].type == sig.type)
+         return; // Already in queue
+   }
+   
+   g_pendingCount++;
+   ArrayResize(g_pendingSignals, g_pendingCount);
+   g_pendingSignals[g_pendingCount - 1] = sig;
+}
+
+//+------------------------------------------------------------------+
+//| ★ Safety Net: Retry failed signals (e.g. Closes)                  |
+//+------------------------------------------------------------------+
+void CheckMissedCloses()
+{
+   if(g_pendingCount == 0) return;
+
+   // Create a matching array to store signals that STILL fail
+   TradeSignal stillPending[];
+   int stillPendingCount = 0;
+   ArrayResize(stillPending, g_pendingCount);
+
+   for(int i = 0; i < g_pendingCount; i++)
+   {
+      CTLog(LOG_INFO, "🔄 RETRY PENDING SIGNAL: " + SignalTypeToString(g_pendingSignals[i].type) + " #" + IntegerToString(g_pendingSignals[i].ticket));
+      
+      if(!BroadcastSignal(g_pendingSignals[i]))
+      {
+         stillPending[stillPendingCount++] = g_pendingSignals[i];
+      }
+   }
+
+   // Update pending queue
+   g_pendingCount = stillPendingCount;
+   ArrayResize(g_pendingSignals, g_pendingCount);
+   for(int i = 0; i < g_pendingCount; i++)
+   {
+      g_pendingSignals[i] = stillPending[i];
+   }
+}
+
+//+------------------------------------------------------------------+
 //| Broadcast signal through all enabled transports                   |
 //+------------------------------------------------------------------+
-void BroadcastSignal(const TradeSignal &sig)
+bool BroadcastSignal(const TradeSignal &sig)
 {
    bool fileSent   = false;
    bool socketSent = false;
@@ -472,9 +553,18 @@ void BroadcastSignal(const TradeSignal &sig)
    if(fileSent)   channels += "File ";
    if(socketSent) channels += "Socket ";
 
-   CTLog(LOG_DEBUG, "Signal broadcast via: " + channels +
-         " Type=" + SignalTypeToString(sig.type) +
-         " Symbol=" + sig.symbol);
+   if(fileSent || socketSent)
+   {
+      CTLog(LOG_DEBUG, "Signal broadcast via: " + channels +
+            " Type=" + SignalTypeToString(sig.type) +
+            " Symbol=" + sig.symbol);
+      return true;
+   }
+   else
+   {
+      CTLog(LOG_WARN, "⚠ BroadcastSignal failed (no route available)");
+      return false;
+   }
 }
 
 //+------------------------------------------------------------------+
@@ -562,8 +652,10 @@ void CheckNewPositions()
          CTLog(LOG_WARN, "🔄 SAFETY NET: Caught missed position #" + IntegerToString(posID) +
                " " + symbol + " " + DoubleToString(lots, 2) + " lots");
 
-         MarkPositionSignaled(posID);
-         BroadcastSignal(sig);
+         if(BroadcastSignal(sig))
+         {
+            MarkPositionSignaled(posID);
+         }
       }
    }
 }

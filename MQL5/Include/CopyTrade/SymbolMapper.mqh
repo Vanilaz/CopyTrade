@@ -304,22 +304,18 @@ double CSymbolMapper::GetPoint(string symbol)
 }
 
 //+------------------------------------------------------------------+
-//| Convert SL/TP: Use pip distance from master entry, apply to slave |
+//| Convert SL/TP: Use absolute price distance applied to slave       |
 //+------------------------------------------------------------------+
 double CSymbolMapper::ConvertSLTP(double masterEntry, double sltp, string masterSym, string slaveSym, double slaveEntry)
 {
    if(sltp == 0) return 0;
 
-   double masterPoint = GetPoint(masterSym);
-   double slavePoint  = GetPoint(slaveSym);
-
-   if(masterPoint == 0 || slavePoint == 0) return 0;
-
-   // Calculate distance in points (master)
-   double distPoints = (sltp - masterEntry) / masterPoint;
-
-   // Apply same distance to slave entry
-   double slavePrice = slaveEntry + distPoints * slavePoint;
+   // Use direct price distance (dollar value matching)
+   double dist = sltp - masterEntry;
+   
+   // Apply same exact numerical distance to slave entry
+   double slavePrice = slaveEntry + dist;
+   
    return NormalizeDouble(slavePrice, GetDigits(slaveSym));
 }
 

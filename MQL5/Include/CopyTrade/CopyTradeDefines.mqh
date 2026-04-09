@@ -23,7 +23,7 @@
 #define CT_FILE_MAX_AGE_SEC   60         // Delete signals older than 60s
 
 //--- Socket Transport
-#define CT_SOCKET_TIMEOUT     5000       // Socket timeout ms
+#define CT_SOCKET_TIMEOUT     200        // Socket timeout ms (Reduced from 5000 to prevent MT5 freeze when offline)
 #define CT_RECONNECT_SEC      3          // Reconnect interval
 #define CT_HEARTBEAT_SEC      5          // Heartbeat interval
 #define CT_HEADER_SIZE        4          // 4-byte length header

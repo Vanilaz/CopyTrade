@@ -165,6 +165,7 @@ string CreateHeartbeatJson(string id, string role)
    double marginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
    double profit      = AccountInfoDouble(ACCOUNT_PROFIT);
    int    positions   = PositionsTotal();
+   double cumDW       = GetCumulativeDW();
 
    string json = "{";
    json += "\"action\":\"heartbeat\",";
@@ -175,6 +176,7 @@ string CreateHeartbeatJson(string id, string role)
    json += "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ",";
    json += "\"floatingPnL\":" + DoubleToString(profit, 2) + ",";
    json += "\"positions\":" + IntegerToString(positions) + ",";
+   json += "\"cumulativeDW\":" + DoubleToString(cumDW, 2) + ",";
    json += "\"ts\":" + IntegerToString((long)TimeCurrent());
    json += "}";
    return json;
@@ -218,6 +220,39 @@ string UnwrapSignalJson(const string &json)
 {
    // Remove the "action":"signal", part and reconstruct
    return json; // Signal fields are already embedded
+}
+
+//+------------------------------------------------------------------+
+//| Calculate Cumulative Deposit/Withdrawal                           |
+//+------------------------------------------------------------------+
+double GetCumulativeDW()
+{
+   static double cached_dw = 0.0;
+   static datetime last_check = 0;
+   datetime now = TimeCurrent();
+   
+   // Update at most every 5 seconds
+   if(now - last_check >= 5)
+   {
+      // Use now + 86400 to ensure all latest deals are captured reliably
+      if(HistorySelect(0, now + 864000))
+      {
+         int total = HistoryDealsTotal();
+         double dw = 0.0;
+         for(int i = 0; i < total; i++)
+         {
+            ulong ticket = HistoryDealGetTicket(i);
+            ENUM_DEAL_TYPE type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE);
+            if(type == DEAL_TYPE_BALANCE || type == DEAL_TYPE_CREDIT || type == DEAL_TYPE_BONUS || type == DEAL_TYPE_CHARGE || type == DEAL_TYPE_CORRECTION)
+            {
+               dw += HistoryDealGetDouble(ticket, DEAL_PROFIT);
+            }
+         }
+         cached_dw = dw;
+         last_check = now;
+      }
+   }
+   return cached_dw;
 }
 
 #endif // JSON_HELPER_MQH

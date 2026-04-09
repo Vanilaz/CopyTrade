@@ -200,8 +200,8 @@ int CFileTransport::ReadSignals(TradeSignal &signals[])
          }
       }
 
-      // ★ ลบไฟล์จาก Common Files หลังอ่านเสร็จ
-      FileDelete(filepath, FILE_COMMON);
+      // ★ FIX: ไม่ลบไฟล์ตรงนี้ เพื่อให้ Slave ตัวอื่นบน VPS เดียวกันสามารถอ่านได้ด้วย!
+      // Master จะเป็นคนลบไฟล์เหล่านี้เองผ่าน CFileTransport::Cleanup()
 
    } while(FileFindNext(searchHandle, filename));
 

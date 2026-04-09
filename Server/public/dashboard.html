@@ -1,13 +1,22 @@
 <!DOCTYPE html>
 <html lang="th">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CopyTrade Dashboard — Real-time Monitor</title>
-    <meta name="description" content="CopyTrade MT5 real-time monitoring dashboard">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <title>CopyTrade Dashboard — Fund Management</title>
+    <meta name="description" content="CopyTrade MT5 real-time fund management dashboard">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap"
+        rel="stylesheet">
     <style>
-        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
 
         :root {
             --bg-base: #050505;
@@ -19,18 +28,18 @@
             --text-primary: #f8fafc;
             --text-secondary: #94a3b8;
             --text-muted: #64748b;
-            
-            --accent-primary: #3b82f6;     /* Blue */
-            --accent-secondary: #8b5cf6;   /* Purple */
-            --accent-success: #10b981;     /* Green */
-            --accent-warning: #f59e0b;     /* Orange */
-            --accent-danger: #ef4444;      /* Red */
-            --accent-info: #0ea5e9;        /* Light blue */
+
+            --accent-primary: #3b82f6;
+            --accent-secondary: #8b5cf6;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-danger: #ef4444;
+            --accent-info: #0ea5e9;
 
             --radius-lg: 16px;
             --radius-md: 12px;
             --radius-sm: 8px;
-            
+
             --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.15);
         }
 
@@ -43,13 +52,15 @@
             line-height: 1.5;
         }
 
-        /* ─── Animated Mesh Background ─── */
         .ambient-bg {
             position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
             z-index: 0;
             pointer-events: none;
-            background: 
+            background:
                 radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08), transparent 25%),
                 radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.08), transparent 25%);
             filter: blur(60px);
@@ -106,6 +117,12 @@
             -webkit-text-fill-color: var(--text-muted);
         }
 
+        .nav-right {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
         .status-badge {
             display: inline-flex;
             align-items: center;
@@ -143,8 +160,61 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: .4; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: .4;
+            }
+        }
+
+        /* ─── Tab Bar ─── */
+        .tab-bar {
+            display: flex;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            padding: 4px;
+        }
+
+        .tab-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: var(--radius-sm);
+            background: transparent;
+            color: var(--text-muted);
+            font-family: 'Outfit', sans-serif;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            letter-spacing: 0.01em;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-secondary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            background: rgba(59, 130, 246, 0.15);
+            color: var(--accent-primary);
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.1);
+        }
+
+        .timezone-badge {
+            font-size: 12px;
+            color: var(--text-muted);
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
 
         /* ─── Layout ─── */
@@ -152,8 +222,18 @@
             position: relative;
             z-index: 1;
             padding: 32px;
-            max-width: 1400px;
+            max-width: 1500px;
             margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
             display: flex;
             flex-direction: column;
             gap: 24px;
@@ -185,16 +265,31 @@
         .stat-box::after {
             content: '';
             position: absolute;
-            top: 0; left: 0; right: 0;
+            top: 0;
+            left: 0;
+            right: 0;
             height: 2px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
         }
 
-        /* Specific accents for stat boxes */
-        .stat-box:nth-child(1)::after { background: var(--accent-primary); }
-        .stat-box:nth-child(2)::after { background: var(--accent-success); }
-        .stat-box:nth-child(3)::after { background: var(--accent-secondary); }
-        .stat-box:nth-child(4)::after { background: var(--accent-warning); }
+        .stat-box:nth-child(1)::after {
+            background: var(--accent-primary);
+        }
+
+        .stat-box:nth-child(2)::after {
+            background: var(--accent-success);
+        }
+
+        .stat-box:nth-child(3)::after {
+            background: var(--accent-secondary);
+        }
+
+        .stat-box:nth-child(4)::after {
+            background: var(--accent-warning);
+        }
+
+        .stat-box:nth-child(5)::after {
+            background: var(--accent-info);
+        }
 
         .stat-title {
             font-size: 13px;
@@ -230,7 +325,9 @@
         }
 
         @media (max-width: 900px) {
-            .dashboard-grid { grid-template-columns: 1fr; }
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         .panel {
@@ -249,7 +346,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: rgba(255,255,255,0.02);
+            background: rgba(255, 255, 255, 0.02);
         }
 
         .panel-title {
@@ -267,11 +364,22 @@
             overflow-y: auto;
         }
 
-        /* Scrollbar styling */
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
 
         /* ─── Lists ─── */
         .list-item {
@@ -282,9 +390,14 @@
             gap: 16px;
             transition: background 0.2s;
         }
-        
-        .list-item:hover { background: var(--bg-card-hover); }
-        .list-item:last-child { border-bottom: none; }
+
+        .list-item:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .list-item:last-child {
+            border-bottom: none;
+        }
 
         .avatar {
             width: 40px;
@@ -297,18 +410,48 @@
             font-size: 16px;
         }
 
-        .avatar.master { background: rgba(245, 158, 11, 0.1); color: var(--accent-warning); border: 1px solid rgba(245, 158, 11, 0.2); }
-        .avatar.slave { background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); border: 1px solid rgba(59, 130, 246, 0.2); }
+        .avatar.master {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--accent-warning);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
 
-        .item-info { flex: 1; }
-        .item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
-        .item-sub { font-size: 13px; color: var(--text-muted); }
+        .avatar.slave {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-primary);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .item-info {
+            flex: 1;
+        }
+
+        .item-title {
+            font-size: 15px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .item-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
 
         .status-dot {
-            width: 8px; height: 8px; border-radius: 50%;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
         }
-        .status-dot.online { background: var(--accent-success); box-shadow: 0 0 8px var(--accent-success); }
-        .status-dot.offline { background: var(--accent-danger); opacity: 0.5; }
+
+        .status-dot.online {
+            background: var(--accent-success);
+            box-shadow: 0 0 8px var(--accent-success);
+        }
+
+        .status-dot.offline {
+            background: var(--accent-danger);
+            opacity: 0.5;
+        }
 
         /* ─── Signal Terminal ─── */
         .terminal-panel {
@@ -336,7 +479,7 @@
 
         .signal-row {
             padding: 12px 24px;
-            border-bottom: 1px solid rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
             display: flex;
             align-items: center;
             gap: 16px;
@@ -344,7 +487,9 @@
             font-size: 13px;
         }
 
-        .signal-row:hover { background: var(--bg-card-hover); }
+        .signal-row:hover {
+            background: var(--bg-card-hover);
+        }
 
         .sig-type {
             padding: 4px 10px;
@@ -356,19 +501,34 @@
             text-align: center;
             letter-spacing: 0.05em;
         }
-        
-        .sig-type.open { background: rgba(16, 185, 129, 0.1); color: var(--accent-success); }
-        .sig-type.close { background: rgba(239, 68, 68, 0.1); color: var(--accent-danger); }
-        .sig-type.modify { background: rgba(59, 130, 246, 0.1); color: var(--accent-info); }
 
-        .sig-symbol { font-weight: 700; color: #fff; width: 80px; }
-        
-        .sig-details { 
-            flex: 1; 
-            display: flex; 
-            align-items: center; 
-            gap: 16px; 
-            color: var(--text-secondary); 
+        .sig-type.open {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-success);
+        }
+
+        .sig-type.close {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-danger);
+        }
+
+        .sig-type.modify {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-info);
+        }
+
+        .sig-symbol {
+            font-weight: 700;
+            color: #fff;
+            width: 80px;
+        }
+
+        .sig-details {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-secondary);
         }
 
         .sig-badge {
@@ -377,23 +537,395 @@
             border-radius: 4px;
             font-size: 12px;
         }
-        
+
         .sig-match {
             color: var(--accent-warning);
         }
 
-        .sig-time { color: var(--text-muted); font-size: 12px; }
+        .sig-time {
+            color: var(--text-muted);
+            font-size: 12px;
+        }
 
         .empty-state {
             padding: 48px 24px;
             text-align: center;
             color: var(--text-muted);
         }
-        .empty-emoji { font-size: 32px; margin-bottom: 16px; opacity: 0.5; }
 
+        .empty-emoji {
+            font-size: 32px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* ═══════════════════════════════════════════════ */
+        /* ─── Auth Overlay ─── */
+        /* ═══════════════════════════════════════════════ */
+        .auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(5, 5, 5, 0.95);
+            backdrop-filter: blur(20px);
+            z-index: 9999;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.3s;
+        }
+
+        .auth-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 32px;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+        }
+
+        .auth-title {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .auth-sub {
+            color: var(--text-muted);
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        .auth-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 12px 16px;
+            border-radius: var(--radius-sm);
+            font-size: 16px;
+            margin-bottom: 8px;
+            text-align: center;
+            letter-spacing: 0.1em;
+        }
+
+        .auth-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .auth-error {
+            color: var(--accent-danger);
+            font-size: 13px;
+            margin-bottom: 16px;
+            height: 16px;
+        }
+
+        .auth-btn {
+            width: 100%;
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .auth-btn:hover {
+            background: #2563eb;
+        }
+
+        /* ═══════════════════════════════════════════════ */
+        /* ─── Performance Tab Styles ─── */
+        /* ═══════════════════════════════════════════════ */
+
+        .perf-table-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow-x: auto;
+            overflow-y: hidden;
+            backdrop-filter: blur(10px);
+        }
+
+        .perf-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        .perf-table thead {
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .perf-table th {
+            padding: 16px 16px;
+            text-align: right;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+
+        .perf-table th:first-child {
+            text-align: left;
+            padding-left: 24px;
+        }
+
+        .perf-table th:last-child {
+            padding-right: 24px;
+        }
+
+        .perf-table tbody tr {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            transition: background 0.2s;
+        }
+
+        .perf-table tbody tr:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .perf-table tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        .perf-table td {
+            padding: 18px 16px;
+            text-align: right;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .perf-table td:first-child {
+            text-align: left;
+            padding-left: 24px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .perf-table td:last-child {
+            padding-right: 24px;
+        }
+
+        .acct-cell {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .acct-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: var(--radius-sm);
+            font-weight: 800;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+
+        .acct-badge.master {
+            background: rgba(245, 158, 11, 0.1);
+            color: var(--accent-warning);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+        }
+
+        .acct-badge.slave {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--accent-primary);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .acct-name {
+            font-weight: 700;
+            font-size: 15px;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .acct-role {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pnl-positive {
+            color: var(--accent-success);
+        }
+
+        .pnl-negative {
+            color: var(--accent-danger);
+        }
+
+        .pnl-zero {
+            color: var(--text-muted);
+        }
+
+        .winrate-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+        }
+
+        .winrate-bar-bg {
+            width: 60px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .winrate-bar {
+            height: 100%;
+            background: var(--accent-success);
+            border-radius: 2px;
+            transition: width 0.5s ease;
+        }
+
+        .dd-cell {
+            color: var(--accent-danger);
+            opacity: 0.9;
+        }
+
+        /* ─── Summary Cards (Performance Tab) ─── */
+        .perf-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .perf-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .perf-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+        }
+
+        .perf-card:nth-child(1)::before {
+            background: linear-gradient(90deg, var(--accent-success), var(--accent-info));
+        }
+
+        .perf-card:nth-child(2)::before {
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        }
+
+        .perf-card:nth-child(3)::before {
+            background: linear-gradient(90deg, var(--accent-warning), var(--accent-danger));
+        }
+
+        .perf-card:nth-child(4)::before {
+            background: linear-gradient(90deg, var(--accent-info), var(--accent-primary));
+        }
+
+        .perf-card-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-bottom: 10px;
+        }
+
+        .perf-card-value {
+            font-size: 32px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            line-height: 1;
+        }
+
+        .perf-card-sub {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 8px;
+        }
+
+        /* ─── Animations ─── */
+        @keyframes fadeSlideIn {
+            from {
+                opacity: 0;
+                transform: translateY(8px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .tab-content.active {
+            animation: fadeSlideIn 0.3s ease;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 1200px) {
+            .perf-table {
+                font-size: 13px;
+            }
+
+            .perf-table th,
+            .perf-table td {
+                padding: 12px 10px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 16px;
+            }
+
+            .navbar {
+                padding: 12px 16px;
+            }
+
+            .perf-table-container {
+                overflow-x: auto;
+            }
+
+            .perf-table {
+                min-width: 800px;
+            }
+        }
     </style>
 </head>
+
 <body>
+
+    <div class="auth-overlay" id="authOverlay">
+        <div class="auth-box">
+            <div class="auth-title">System Locked</div>
+            <div class="auth-sub">Enter passcode to access dashboard</div>
+            <input type="password" id="passcodeInput" class="auth-input" placeholder="••••••••"
+                onkeydown="if(event.key==='Enter') submitPasscode()">
+            <div class="auth-error" id="authError"></div>
+            <button class="auth-btn" onclick="submitPasscode()">Access Dashboard</button>
+        </div>
+    </div>
 
     <div class="ambient-bg"></div>
 
@@ -402,84 +934,176 @@
             <div class="brand-logo">CT</div>
             <div class="brand-text">
                 <h1>CopyTrade Pro</h1>
-                <span>Institutional cross-broker execution</span>
+                <span>Fund Management Dashboard</span>
             </div>
         </div>
-        <div id="connectionBadge" class="status-badge disconnected">
-            <div class="pulse-indicator"></div>
-            <span id="connectionText">Connecting...</span>
+        <div class="nav-right">
+            <div class="timezone-badge" id="tzBadge">🕑 Local Time</div>
+            <div class="tab-bar">
+                <button class="tab-btn active" onclick="switchTab('overview')">📊 Overview</button>
+                <button class="tab-btn" onclick="switchTab('performance')">🏦 Performance</button>
+                <button class="tab-btn" onclick="switchTab('history')">📜 History</button>
+            </div>
+            <div id="connectionBadge" class="status-badge disconnected">
+                <div class="pulse-indicator"></div>
+                <span id="connectionText">Connecting...</span>
+            </div>
         </div>
     </nav>
 
     <main class="container">
-        
-        <div class="hero-stats">
-            <div class="stat-box">
-                <div class="stat-title">🟢 Active Masters</div>
-                <div class="stat-value" id="masterCount">0</div>
-                <div class="stat-footer">Broadcasting signals</div>
+
+        <!-- ═══ TAB: Overview ═══ -->
+        <div id="tab-overview" class="tab-content active">
+            <div class="hero-stats">
+                <div class="stat-box">
+                    <div class="stat-title">🟢 Active Masters</div>
+                    <div class="stat-value" id="masterCount">0</div>
+                    <div class="stat-footer">Broadcasting signals</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-title">🔵 Connected Slaves</div>
+                    <div class="stat-value" id="slaveCount">0</div>
+                    <div class="stat-footer">Following strategies</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-title">💰 Total Floating</div>
+                    <div class="stat-value" id="totalPnl">$0.00</div>
+                    <div class="stat-footer" id="lastSignalTime">All connected accounts</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-title">⚡ Total Executions</div>
+                    <div class="stat-value" id="signalCount">0</div>
+                    <div class="stat-footer">Today's executed trades</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-title">⏱️ System Uptime</div>
+                    <div class="stat-value" id="uptime">0s</div>
+                    <div class="stat-footer">Zero downtime</div>
+                </div>
             </div>
-            <div class="stat-box">
-                <div class="stat-title">🔵 Connected Slaves</div>
-                <div class="stat-value" id="slaveCount">0</div>
-                <div class="stat-footer">Following strategies</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">💰 Total PnL (Open)</div>
-                <div class="stat-value" id="totalPnl">$0.00</div>
-                <div class="stat-footer" id="lastSignalTime">All connected accounts</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">⚡ Total Executions</div>
-                <div class="stat-value" id="signalCount">0</div>
-                <div class="stat-footer">Today's executed trades</div>
-            </div>
-            <div class="stat-box">
-                <div class="stat-title">⏱️ System Uptime</div>
-                <div class="stat-value" id="uptime">0s</div>
-                <div class="stat-footer">Zero downtime</div>
+
+            <div class="dashboard-grid">
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">Master Accounts</div>
+                    </div>
+                    <div class="panel-body" id="mastersList">
+                        <div class="empty-state">
+                            <div class="empty-emoji">📡</div>
+                            Waiting for Master terminals
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel">
+                    <div class="panel-header">
+                        <div class="panel-title">Slave Accounts</div>
+                    </div>
+                    <div class="panel-body" id="slavesList">
+                        <div class="empty-state">
+                            <div class="empty-emoji">⏳</div>
+                            Waiting for Slave terminals
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel terminal-panel">
+                    <div class="panel-header">
+                        <div class="panel-title">Execution Terminal</div>
+                        <button class="btn-clear" onclick="clearSignals()">Clear Terminal</button>
+                    </div>
+                    <div class="panel-body" id="signalLog" style="max-height: 400px;">
+                        <div class="empty-state">
+                            <div class="empty-emoji">📭</div>
+                            System idle. Waiting for trade activities.
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="dashboard-grid">
-            
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title">Master Accounts</div>
+        <!-- ═══ TAB: Performance ═══ -->
+        <div id="tab-performance" class="tab-content">
+
+            <!-- Summary Cards -->
+            <div class="perf-summary" id="perfSummary">
+                <div class="perf-card">
+                    <div class="perf-card-label">📈 Total Accounts</div>
+                    <div class="perf-card-value" id="perfTotalAccounts">0</div>
+                    <div class="perf-card-sub">Master + Slave connected</div>
                 </div>
-                <div class="panel-body" id="mastersList">
-                    <div class="empty-state">
-                        <div class="empty-emoji">📡</div>
-                        Waiting for Master terminals
-                    </div>
+                <div class="perf-card">
+                    <div class="perf-card-label">💰 Total AUM</div>
+                    <div class="perf-card-value" id="perfTotalAum">$0</div>
+                    <div class="perf-card-sub">Assets Under Management</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-card-label">🎯 Avg Win Rate</div>
+                    <div class="perf-card-value" id="perfAvgWinRate">—</div>
+                    <div class="perf-card-sub">Across all accounts</div>
+                </div>
+                <div class="perf-card">
+                    <div class="perf-card-label">📊 Total Trades</div>
+                    <div class="perf-card-value" id="perfTotalTrades">0</div>
+                    <div class="perf-card-sub">All-time closed trades</div>
                 </div>
             </div>
 
-            <div class="panel">
-                <div class="panel-header">
-                    <div class="panel-title">Slave Accounts</div>
-                </div>
-                <div class="panel-body" id="slavesList">
-                    <div class="empty-state">
-                        <div class="empty-emoji">⏳</div>
-                        Waiting for Slave terminals
-                    </div>
-                </div>
+            <!-- Performance Table -->
+            <div class="perf-table-container">
+                <table class="perf-table" id="perfTable">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Account</th>
+                            <th>Balance</th>
+                            <th>Today P&L</th>
+                            <th>Week P&L</th>
+                            <th>Month P&L</th>
+                            <th>Floating</th>
+                            <th>Win / Loss</th>
+                            <th>Win Rate</th>
+                            <th>Drawdown</th>
+                            <th>Positions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="perfTableBody">
+                        <tr>
+                            <td colspan="10" style="text-align:center; padding:48px; color:var(--text-muted);">
+                                <div style="font-size:32px; margin-bottom:12px; opacity:0.5;">🏦</div>
+                                Waiting for account data...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
+        </div>
 
-            <div class="panel terminal-panel">
-                <div class="panel-header">
-                    <div class="panel-title">Execution Terminal</div>
-                    <button class="btn-clear" onclick="clearSignals()">Clear Terminal</button>
-                </div>
-                <div class="panel-body" id="signalLog" style="max-height: 400px;">
-                    <div class="empty-state">
-                        <div class="empty-emoji">📭</div>
-                        System idle. Waiting for trade activities.
-                    </div>
-                </div>
+        <!-- ═══ TAB: History ═══ -->
+        <div id="tab-history" class="tab-content">
+            <div class="perf-table-container">
+                <table class="perf-table">
+                    <thead>
+                        <tr>
+                            <th style="text-align:left;">Time</th>
+                            <th>Account</th>
+                            <th>Role</th>
+                            <th>Symbol</th>
+                            <th>Type</th>
+                            <th>Lots</th>
+                            <th>Fill Price</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align:center; padding:48px; color:var(--text-muted);">
+                                <div style="font-size:32px; margin-bottom:12px; opacity:0.5;">📜</div>
+                                No closed trades yet.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-
         </div>
 
     </main>
@@ -487,40 +1111,101 @@
     <script>
         let ws = null;
         let signals = [];
+        let performanceData = [];
+        let tradeHistory = [];
         const startTime = Date.now();
+        let passcode = localStorage.getItem('copytrade_passcode') || '';
 
+        // Init timezone display
+        try {
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+            document.getElementById('tzBadge').textContent = '🕑 ' + tz;
+        } catch (e) { }
+
+        // ─── Auth ───
+        if (!passcode) {
+            document.getElementById('authOverlay').style.display = 'flex';
+        } else {
+            document.getElementById('authOverlay').style.display = 'none';
+            connectWebSocket();
+        }
+
+        function submitPasscode() {
+            passcode = document.getElementById('passcodeInput').value;
+            if (passcode.trim() === '') return;
+            localStorage.setItem('copytrade_passcode', passcode);
+            document.getElementById('authError').textContent = '';
+            document.getElementById('authOverlay').style.display = 'none';
+            connectWebSocket();
+        }
+
+        // ─── Tab Switching ───
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // ─── WebSocket ───
         function connectWebSocket() {
-            const wsUrl = `ws://${window.location.hostname}:${window.location.port}`;
+            const wsUrl = `ws://${window.location.hostname}:${window.location.port}?passcode=${passcode}`;
             ws = new WebSocket(wsUrl);
 
             ws.onopen = () => updateConnectionStatus(true);
             ws.onmessage = (event) => {
                 try {
                     const msg = JSON.parse(event.data);
-                    if(msg.type === 'status') updateStatus(msg.data);
-                    if(msg.type === 'signal') addSignal(msg.data);
-                    if(msg.type === 'signalHistory') { signals = msg.data || []; renderSignals(); }
-                } catch(e) {}
+                    if (msg.type === 'status') updateStatus(msg.data);
+                    if (msg.type === 'signal') addSignal(msg.data);
+                    if (msg.type === 'signalHistory') { signals = msg.data || []; renderSignals(); }
+                    if (msg.type === 'tradeHistory') { tradeHistory = msg.data || []; renderHistory(); }
+                    if (msg.type === 'performance') { performanceData = msg.data || []; renderPerformance(); }
+                } catch (e) { }
             };
-            ws.onclose = () => { updateConnectionStatus(false); setTimeout(connectWebSocket, 3000); };
+            ws.onclose = (e) => {
+                updateConnectionStatus(false);
+                if (e.code === 4001) {
+                    localStorage.removeItem('copytrade_passcode');
+                    document.getElementById('authError').textContent = 'Incorrect passcode';
+                    document.getElementById('authOverlay').style.display = 'flex';
+                } else {
+                    setTimeout(connectWebSocket, 3000);
+                }
+            };
             ws.onerror = () => ws.close();
         }
 
+        // ─── Formatting ───
         function formatCurrency(val) {
             if (val === undefined || val === null) return '—';
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
         }
 
+        function formatPnL(val) {
+            if (val === undefined || val === null || val === 0) return '<span class="pnl-zero">$0.00</span>';
+            const cls = val > 0 ? 'pnl-positive' : 'pnl-negative';
+            const sign = val > 0 ? '+' : '';
+            return `<span class="${cls}">${sign}${formatCurrency(val).replace('$', '').replace('-', '')}${val < 0 ? '' : ''}</span>`;
+        }
+
+        function formatPnLValue(val) {
+            if (val === undefined || val === null || Math.abs(val) < 0.005) return '<span class="pnl-zero">$0.00</span>';
+            const cls = val > 0 ? 'pnl-positive' : 'pnl-negative';
+            const sign = val > 0 ? '+$' : '-$';
+            const abs = Math.abs(val);
+            return `<span class="${cls}">${sign}${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
+        }
+
+        // ─── Overview Tab ───
         function updateStatus(status) {
             document.getElementById('masterCount').textContent = status.masters.length;
             document.getElementById('slaveCount').textContent = status.slaves.length;
             document.getElementById('signalCount').textContent = status.signalCount;
 
             let totalFloatingPnl = 0;
-            status.slaves.forEach(s => {
-                if (s.info && s.info.floatingPnL) {
-                    totalFloatingPnl += s.info.floatingPnL;
-                }
+            [...status.masters, ...status.slaves].forEach(a => {
+                if (a.info && a.info.floatingPnL) totalFloatingPnl += a.info.floatingPnL;
             });
             const pnlEl = document.getElementById('totalPnl');
             pnlEl.textContent = formatCurrency(totalFloatingPnl);
@@ -577,6 +1262,87 @@
             }
         }
 
+        // ─── Performance Tab ───
+        function renderPerformance() {
+            const tbody = document.getElementById('perfTableBody');
+
+            if (!performanceData || performanceData.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:48px; color:var(--text-muted);">
+                    <div style="font-size:32px; margin-bottom:12px; opacity:0.5;">🏦</div>
+                    Waiting for account data...
+                </td></tr>`;
+                return;
+            }
+
+            // Sort: masters first, then by balance desc
+            const sorted = [...performanceData].sort((a, b) => {
+                if (a.role === 'master' && b.role !== 'master') return -1;
+                if (a.role !== 'master' && b.role === 'master') return 1;
+                return (b.balance || 0) - (a.balance || 0);
+            });
+
+            tbody.innerHTML = sorted.map(acct => {
+                const badgeCls = acct.role === 'master' ? 'master' : 'slave';
+                const badgeLetter = acct.role === 'master' ? 'M' : 'S';
+                const winPct = acct.totalTrades > 0 ? ((acct.winTrades / acct.totalTrades) * 100) : 0;
+                const winRateStr = acct.totalTrades > 0 ? winPct.toFixed(1) + '%' : '—';
+                const ddStr = parseFloat(acct.currentDD) > 0 ? `-${acct.currentDD}%` : '0%';
+
+                return `
+                    <tr>
+                        <td>
+                            <div class="acct-cell">
+                                <div class="acct-badge ${badgeCls}">${badgeLetter}</div>
+                                <div>
+                                    <div class="acct-name">${escapeHtml(acct.accountId)}</div>
+                                    <div class="acct-role">${acct.role}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${formatCurrency(acct.balance)}</td>
+                        <td>${formatPnLValue(acct.todayPnL)}</td>
+                        <td>${formatPnLValue(acct.weekPnL)}</td>
+                        <td>${formatPnLValue(acct.monthPnL)}</td>
+                        <td>${formatPnLValue(acct.floating)}</td>
+                        <td style="font-size:13px;">
+                            <span class="pnl-positive">${acct.winTrades}W</span>
+                            <span style="color:var(--text-muted);margin:0 2px;">/</span>
+                            <span class="pnl-negative">${acct.lossTrades}L</span>
+                        </td>
+                        <td>
+                            <div class="winrate-cell">
+                                <span>${winRateStr}</span>
+                                <div class="winrate-bar-bg">
+                                    <div class="winrate-bar" style="width:${winPct}%"></div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="dd-cell">${ddStr}</td>
+                        <td style="color:var(--text-secondary)">${acct.positions}</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // Update summary cards
+            let totalAum = 0, totalTrades = 0, totalWins = 0, totalAll = 0;
+            performanceData.forEach(a => {
+                totalAum += a.equity || 0;
+                totalTrades += a.totalTrades || 0;
+                totalWins += a.winTrades || 0;
+                totalAll += a.totalTrades || 0;
+            });
+
+            document.getElementById('perfTotalAccounts').textContent = performanceData.length;
+            document.getElementById('perfTotalAum').textContent = formatCurrency(totalAum);
+            document.getElementById('perfAvgWinRate').textContent = totalAll > 0 ? ((totalWins / totalAll) * 100).toFixed(1) + '%' : '—';
+            document.getElementById('perfTotalTrades').textContent = totalTrades;
+
+            // Color the AUM value
+            const aumEl = document.getElementById('perfTotalAum');
+            aumEl.style.color = 'var(--text-primary)';
+        }
+
+        // ─── Signals Terminal ───
         function addSignal(signal) {
             signals.push(signal);
             if (signals.length > 200) signals.shift();
@@ -594,10 +1360,10 @@
 
             const reversed = [...signals].reverse().slice(0, 100);
             el.innerHTML = reversed.map(sig => {
-                const typeClass = (sig.type || '').split('_')[0].toLowerCase(); // OPEN/CLOSE
-                const priceMatchStr = sig.fillPrice && sig.fillPrice > 0 
-                                      ? `<span class="sig-badge sig-match">Fill: ${sig.fillPrice.toFixed(5)}</span>`
-                                      : '';
+                const typeClass = (sig.type || '').split('_')[0].toLowerCase();
+                const priceMatchStr = sig.fillPrice && sig.fillPrice > 0
+                    ? `<span class="sig-badge sig-match">Fill: ${sig.fillPrice.toFixed(5)}</span>`
+                    : '';
                 const latencyStr = sig.fillTimeMs ? `<span class="sig-badge">${sig.fillTimeMs}ms latency</span>` : '';
 
                 return `
@@ -616,10 +1382,34 @@
             }).join('');
         }
 
+        // ─── History Tab ───
+        function renderHistory() {
+            const tbody = document.getElementById('historyTableBody');
+            if (tradeHistory.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:48px; color:var(--text-muted);"><div style="font-size:32px; margin-bottom:12px; opacity:0.5;">📜</div>No closed trades yet.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = tradeHistory.map(row => {
+                const typeClass = (row.type || '').split('_')[0].toLowerCase();
+                const roleClass = row.masterID.startsWith('M') ? 'master' : 'slave';
+                const roleLetter = row.masterID.startsWith('M') ? 'M' : 'S';
+                return `<tr>
+                    <td style="text-align:left; padding-left:24px;">${formatTime(row.time)}</td>
+                    <td>${escapeHtml(row.masterID)}</td>
+                    <td><div class="acct-badge ${roleClass}" style="width:24px;height:24px;font-size:11px;">${roleLetter}</div></td>
+                    <td><span class="sig-symbol">${escapeHtml(row.symbol || '—')}</span></td>
+                    <td><span class="sig-type ${typeClass}">${row.type.replace('SIGNAL_', '')}</span></td>
+                    <td>${row.lots ? row.lots.toFixed(2) + 'L' : '-'}</td>
+                    <td style="padding-right:24px;">${row.fillPrice ? row.fillPrice.toFixed(5) : '-'}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // ─── Helpers ───
         function formatTime(ts) {
             if (!ts) return '—';
             const d = new Date(typeof ts === 'number' ? ts : parseInt(ts) * 1000);
-            return d.toLocaleTimeString('en-US', { hour12: false }) || '—';
+            return d.toLocaleString('en-US', { hour12: false, month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }) || '—';
         }
 
         function escapeHtml(str) {
@@ -647,11 +1437,12 @@
             const h = Math.floor(elapsed / 3600);
             const m = Math.floor((elapsed % 3600) / 60);
             const s = elapsed % 60;
-            document.getElementById('uptime').textContent = 
+            document.getElementById('uptime').textContent =
                 (h > 0 ? h + 'h ' : '') + (m > 0 || h > 0 ? m + 'm ' : '') + s + 's';
         }, 1000);
 
         connectWebSocket();
     </script>
 </body>
+
 </html>

@@ -461,6 +461,17 @@ bool CTradeExecutor::ExecuteModify(long slavePositionID, double newSL, double ne
                " SL=" + DoubleToString(newSL, digits) + " TP=" + DoubleToString(newTP, digits));
          return true;
       }
+      else
+      {
+         uint retcode = m_trade.ResultRetcode();
+         // If no changes were actually made, it's not a real error.
+         if(retcode == 10025) // TRADE_RETCODE_NO_CHANGES
+         {
+            return true;
+         }
+         CTLog(LOG_WARN, "⚠ MODIFY failed #" + IntegerToString(slavePositionID) + ": " + 
+               m_trade.ResultRetcodeDescription() + " (code: " + IntegerToString(retcode) + ")");
+      }
       Sleep(m_retryDelayMs);
    }
    return false;
