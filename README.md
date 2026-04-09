@@ -1,18 +1,26 @@
 # CopyTrade MT5 — ระบบ Copy Trade ข้ามเครื่อง ข้าม Broker (Institutional Grade)
 
+> **Version 1.1** — Signal Reliability Patch  
+> แก้ไข Critical Bugs: Signal Loss, Filename Collision, Filling Mode Auto-Detect
+
+---
+
 ## 🎯 ความสามารถหลัก
 
 | Feature | รายละเอียด |
 |---|---|
 | ✅ **Fuzzy Deep Scan** | จับคู่ชื่อ Symbol ข้าม Broker อัตโนมัติ (เช่น XAUUSD -> XAUUSD.std) โบรกเกอร์ชื่อแปลกแค่ไหนก็หากันเจอ |
-| ✅ **Local Copy** | Copy ในเครื่องเดียวกัน / VPS เดียวกัน ผ่าน Localhost (เร็ว <10ms) |
+| ✅ **Local Copy** | Copy ในเครื่องเดียวกัน / VPS เดียวกัน ผ่าน Shared Files (เร็ว <10ms) |
 | ✅ **Remote Copy** | Copy ข้าม VPS หรือคนละประเทศผ่าน TCP Socket + Relay Server (Node.js) |
 | ✅ **Price Matching** | จับราคา fill จริงของ Master แล้วส่งให้ Slave ยิงตามราคาเดิมด้วย slippage แค่ 5 pt |
 | ✅ **Auto Account ID** | ผูกระบบด้วยเลขบัญชีเข้าเทรด Master ทันที ไม่ต้องกรอก Token ให้ยุ่งยาก |
 | ✅ **Exact Match SL/TP**| คำนวณความห่างของ SL/TP จาก Master แล้วแปลงเป็นระยะ Point ให้ Slave เป๊ะๆ |
 | ✅ **Pending Orders** | รองรับไม้ Pending ทุกประเภท (Buy Limit, Sell Stop, etc.) |
 | ✅ **Auto-Reconnect** | หากเน็ตหลุด / เซิร์ฟเวอร์รีสตาร์ท EA จะเชื่อมต่อกลับเองแบบอัตโนมัติ |
-| ✅ **Bento Dashboard** | แจ้งเตือนสถานะบัญชีแบบสดๆ (Live) ด้วยหน้าต่างบัญชาการสไตล์ Bento Box แสดง Margin, Balance, Equity และ Floating PnL ของทุกบัญชี |
+| ✅ **Safety Net** | ตรวจจับ Position ที่หลุดจาก OnTradeTransaction อัตโนมัติ — ไม่มีสัญญาณตกหล่น |
+| ✅ **Auto-Sync on Restart** | เมื่อ Master EA รีสตาร์ท จะ Sync Position ทั้งหมดให้ Slave ตรงกันทันที |
+| ✅ **Filling Mode Auto-Detect** | ตรวจจับ Filling Policy (IOC/FOK/RETURN) ของ Broker อัตโนมัติ ไม่ต้องตั้งค่าเอง |
+| ✅ **Bento Dashboard** | แจ้งเตือนสถานะบัญชีแบบสดๆ (Live) ด้วยหน้าต่างบัญชาการสไตล์ Bento Box |
 
 ---
 
@@ -192,16 +200,45 @@ set TCP_PORT=5555 && set HTTP_PORT=8080 && node server.js
 │  MT5 EA  │TCP │  Node.js          │TCP │  MT5 EA  │
 │  VPS-A   │5555│  VPS-A / VPS-C    │5555│  VPS-B   │
 └──────────┘    └───────────────────┘    └──────────┘
+
+      Local Mode (เครื่องเดียวกัน):
+┌──────────┐    ┌───────────────────┐    ┌──────────┐
+│ 👑 Master│───▶│  📂 Common Files  │───▶│ 📋 Slave │
+│  MT5 EA  │    │  (FILE_COMMON)    │    │  MT5 EA  │
+│  Chart 1 │    │  copytrade/*.json │    │  Chart 2 │
+└──────────┘    └───────────────────┘    └──────────┘
 ```
 
-- **Master EA** → เทรดปกติ → จับ deal → ส่ง signal ไปยัง Relay Server
-- **Relay Server** → รับ signal → กระจายส่งไปยัง Slave ทุกตัวที่เชื่อมอยู่
+- **Master EA** → เทรดปกติ → จับ deal → ส่ง signal (ไฟล์ JSON หรือ TCP)
+- **Local Mode** → Master เขียนไฟล์ไปยัง `Common Files\copytrade\` → Slave อ่านทุก 100ms
+- **Remote Mode** → Relay Server → รับ signal → กระจายส่งไปยัง Slave ทุกตัว
 - **Slave EA** → รับ signal → เปิดออเดอร์ตาม Master (รองรับ Price Matching)
 - **Dashboard** → เชื่อมต่อผ่าน WebSocket → แสดงผลแบบ Real-time
 
 ---
 
-## 🚀 วิธีตั้งค่าใช้งานข้ามเครื่อง (คนละ VPS / คนละเครือข่าย)
+## 🚀 วิธีตั้งค่าใช้งาน Local Mode (เครื่องเดียวกัน)
+
+### ตั้งค่า Master EA
+1. เปิด MT5 กราฟใดก็ได้ ลาก `CopyTradeMaster` ไปใส่
+2. หน้า Input ตั้งค่า:
+   - `Copy Mode` = `Local via Files`
+3. สังเกตที่ Experts Tab จะต้องขึ้น `📁 File Transport: Ready`
+
+### ตั้งค่า Slave EA
+1. เปิดกราฟอีกอัน (Terminal เดียวกัน หรือต่าง Terminal ก็ได้) ลาก `CopyTradeSlave` ไปใส่
+2. หน้า Input ตั้งค่า:
+   - `Copy Mode` = `Local via Files`
+   - `Master Account ID` = **เลขบัญชี Master** (เช่น `58022696`)
+3. สังเกตที่ Experts Tab จะต้องขึ้น `✅ Slave EA initialized`
+
+> 📁 **หมายเหตุ:** ไฟล์ Signal ถูกเก็บไว้ที่  
+> `C:\Users\<User>\AppData\Roaming\MetaQuotes\Terminal\Common\Files\copytrade\`  
+> ทุก MT5 Terminal บนเครื่องเดียวกันเข้าถึง folder นี้ได้โดยอัตโนมัติ
+
+---
+
+## 🚀 วิธีตั้งค่าใช้งานข้ามเครื่อง (Remote Mode)
 
 หากคุณนำ Master ไปไว้ที่ VPS-A และ Slave ไว้ที่ VPS-B คุณจำเป็นต้องมี **Relay Server (ตัวกลางส่งสัญญาณ)** 
 โดยสามารถรัน Relay Server ไว้ที่ VPS-A (เครื่อง Master) หรือจะเช่า VPS-C (Ubuntu/Windows) แยกรันเซิร์ฟเวอร์เพียวๆ เลยก็ได้ครับ
@@ -257,7 +294,47 @@ set TCP_PORT=5555 && set HTTP_PORT=8080 && node server.js
 
 1. **Base Symbol Extractor:** ระบบจะดักจับนามสกุลส่วนเกิน (เช่น `.r`, `-ECN`, `_std`, `c`) โดยหั่นทิ้งด้วยจุด (.) หรือขีด (-) จนเหลือแค่ Base Symbol เพียวๆ (เช่น เปลี่ยน `XAUUSD.r` ให้เหลือแค่ `XAUUSD`)
 2. **Fuzzy Deep Scan:** นำ Base Symbol ที่ถูกสกัดมาแล้ว ไปสแกนหาใน Market Watch ของโบรคเกอร์ปลายทาง หากพบว่าสอดคล้องกัน (เช่น เจอ `XAUUSD.std`) ระบบจะทำการจัดคู่ (Mapping) ให้เองแบบ **อัตโนมัติ 100%** ไร้รอยต่อข้าม Broker
-3. **Manual Override:** กรณีที่โบรกเกอร์ 2 แห่งใช้คำศัพท์คนละโลก เช่น Master เป็น `XAUUSD` แต่ Slave เป็น `GOLD` คุณสามารถกรอกจับคู่เองได้ง่ายๆ ผ่านหน้า Setting (หรือ `SymbolMap.txt`) ระบบจะให้ความสำคัญกับคำสั่งของคุณเป็นอันดับ 1
+3. **Manual Override:** กรณีที่โบรกเกอร์ 2 แห่งใช้คำศัพท์คนละโลก เช่น Master เป็น `XAUUSD` แต่ Slave เป็น `GOLD` คุณสามารถกรอกจับคู่เองได้ง่ายๆ ผ่านหน้า Setting (หรือ `Config/SymbolMap.txt`) ระบบจะให้ความสำคัญกับคำสั่งของคุณเป็นอันดับ 1
+
+---
+
+## 🛡️ กลไกความน่าเชื่อถือ (Reliability Mechanisms)
+
+### Signal Delivery — ชั้นป้องกัน 3 ระดับ
+
+```
+ชั้นที่ 1: OnTradeTransaction → HistoryDealSelect (retry 10 ครั้ง)
+  ├─ สำเร็จ → ส่ง Signal ทันที ✅
+  └─ ล้มเหลว → ตกไปชั้นที่ 2
+
+ชั้นที่ 2: Safety Net (OnTimer ทุก 100ms)
+  ├─ สแกน Positions ทั้งหมด
+  ├─ เจอ Position ที่ยังไม่เคยส่ง Signal → ส่งทันที ✅
+  └─ ไม่มีตกหล่น
+
+ชั้นที่ 3: Auto-Sync on Restart
+  ├─ Master EA รีสตาร์ท → ส่ง Signal ทุก Position ใหม่
+  └─ Slave กรอง Duplicate ด้วย FindSlaveTicket() → ไม่มีไม้ซ้ำ ✅
+```
+
+### Filling Mode Auto-Detect
+
+ระบบตรวจจับ Filling Policy ที่ Broker รองรับโดยอัตโนมัติ:
+
+| ลำดับ | Filling Mode | Broker ที่ใช้ |
+|---|---|---|
+| 1 | `ORDER_FILLING_IOC` | ส่วนใหญ่ (ECN, STP) |
+| 2 | `ORDER_FILLING_FOK` | Dealing Desk, Fixed Spread |
+| 3 | `ORDER_FILLING_RETURN` | บาง Broker เก่า |
+
+### Signal ID — ไม่ซ้ำเด็ดขาด
+
+ใช้ Atomic Counter (เริ่มจาก System Uptime + เพิ่มทีละ 1) เพื่อป้องกัน Filename Collision เมื่อส่งหลาย Signal พร้อมกัน
+
+### Deduplication — Set-Based
+
+Slave ใช้ Set-based dedup (เก็บ 500 signalID ล่าสุด) แทน Sequential ID ซึ่งรับประกันว่าทุก Signal จะถูกประมวลผลไม่ว่า File System จะคืนไฟล์ลำดับใดก็ตาม
+
 ---
 
 ## 📊 Institutional Web Dashboard (Bento UI)
@@ -294,16 +371,18 @@ CopyTrade/
 │   │   └── CopyTradeSlave.mq5       ← EA ฝั่ง Slave
 │   │
 │   └── Include/CopyTrade/
-│       ├── CopyTradeDefines.mqh      ← Structs, Enums, ค่าคงที่
-│       ├── TradeExecutor.mqh         ← Engine สั่งเปิด/ปิดออเดอร์ + Price Matching
+│       ├── CopyTradeDefines.mqh      ← Structs, Enums, ค่าคงที่, Signal ID Generator
+│       ├── TradeExecutor.mqh         ← Engine สั่งเปิด/ปิดออเดอร์ + Price Matching + Auto-Fill
 │       ├── SymbolMapper.mqh          ← Fuzzy Deep Scan จับคู่ Symbol
-│       ├── TransportLocal.mqh        ← การสื่อสารภายในเครื่อง (File-based)
-│       ├── TransportRemote.mqh       ← การสื่อสารข้าม VPS (TCP Socket)
+│       ├── FileTransport.mqh         ← Local IPC ผ่าน FILE_COMMON + Set-Based Dedup
+│       ├── SocketTransport.mqh       ← การสื่อสารข้าม VPS (TCP Socket)
 │       ├── JsonHelper.mqh            ← Serialize/Deserialize Signal เป็น JSON
 │       ├── DashboardUI.mqh           ← Dashboard แสดงผลบนจอ MT5
 │       └── Logger.mqh                ← ระบบ Log
 │
-├── Config/                           ← ไฟล์ Config (SymbolMap, etc.)
+├── Config/
+│   └── SymbolMap.txt                 ← Manual Symbol Mapping (Override)
+│
 └── README.md                         ← ไฟล์นี้
 ```
 
@@ -322,6 +401,34 @@ CopyTrade/
 
 ---
 
+## 🔄 Changelog
+
+### v1.1 — Signal Reliability Patch (2026-04-09)
+
+**🔴 Critical Fixes:**
+- **Signal ID Collision:** `signalID = GetTickCount64()` ทำให้หลาย signal ได้ชื่อไฟล์เดียวกัน → ไฟล์ทับกัน → signal หาย  
+  → แก้เป็น Atomic Counter ที่ unique ทุกตัว
+- **HistoryDealSelect Race:** `OnTradeTransaction` อาจ fire ก่อน Deal พร้อมใน History → signal ไม่ถูกส่ง  
+  → เพิ่ม retry 10 ครั้ง (ทุก 20ms, สูงสุด 200ms)
+- **FILE_COMMON Path Mismatch:** Master เขียน Common Files แต่ Slave ค้นหาใน Local Files  
+  → ทั้งคู่ใช้ FILE_COMMON เสมอ
+- **Sequential Dedup Bug:** `lastReadSignalID` ข้ามสัญญาณเมื่อ File System คืนไฟล์ไม่เรียงลำดับ  
+  → เปลี่ยนเป็น Set-Based Dedup (500 IDs)
+
+**🟡 Improvements:**
+- **Safety Net:** `CheckNewPositions()` ตรวจจับ Position ที่ OnTradeTransaction พลาด (ทุก 100ms)
+- **Auto-Sync on Restart:** Master restart → ส่ง SIGNAL_OPEN ทุก Position → Slave กรอง duplicate
+- **Filling Mode Auto-Detect:** ตรวจจับ IOC/FOK/RETURN จาก `SYMBOL_FILLING_MODE` แทน hard-code
+
+### v1.0 — Initial Release (2026-04-08)
+- Local & Remote Copy Trade
+- Fuzzy Deep Scan Symbol Mapper
+- Price Matching (EXEC_MATCH_MASTER)
+- Web Dashboard (Bento UI)
+- Pending Order Support
+
+---
+
 ## 🛡 ข้อจำกัดที่ควรรู้
 1. **เรื่องของราคาข้าม Broker:** หากคุณเทรด Market Orders ระหว่างสองโบรกเกอร์ที่ราคาประเมินตลาดต่างกัน "ราคาเข้าของคุณ (Open Price) จะไม่มีทางเท่ากันเป๊ะ 100%" ฝั่ง Slave จะได้ราคาที่ดีที่สุดของโบรกเกอร์นั้นในวินาทีที่จับสัญญาณได้ (ซึ่งบ่อยครั้ง Slave อาจได้ราคาดีกว่า Master ด้วยซ้ำ)
 2. **Broker เดียวกัน:** ใช้โหมด `EXEC_MATCH_MASTER` จะช่วยให้ราคาตรงกันมากที่สุด (ต่างกันไม่เกิน 1-5 points)
@@ -329,4 +436,4 @@ CopyTrade/
 
 ---
 
-*CopyTrade System v1.0 — Institutional Cross-Broker Execution Engine*
+*CopyTrade System v1.1 — Institutional Cross-Broker Execution Engine*
