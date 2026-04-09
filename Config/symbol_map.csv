@@ -1,0 +1,13 @@
+# Symbol Mapping — Master Symbol,Slave Symbol
+# ═══════════════════════════════════════════
+# ใส่ mapping ที่ต้องการ ถ้าไม่ใส่จะ auto-detect
+# ตัวอย่าง (ลบ # หน้าบรรทัดเพื่อใช้งาน):
+#
+# EURUSD,EURUSDm
+# GBPUSD,GBPUSDm
+# USDJPY,USDJPYm
+# XAUUSD,GOLDm
+# XAUUSD,GOLD.i
+# BTCUSD,BTCUSDm
+# US30,DJ30
+# NAS100,USTEC

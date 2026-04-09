@@ -1,0 +1,17 @@
+{
+  "server": {
+    "tcpPort": 5555,
+    "httpPort": 8080,
+    "authToken": "copytrade2025"
+  },
+  "defaults": {
+    "heartbeatSec": 5,
+    "maxRetries": 3,
+    "maxSpread": 30,
+    "maxSlippage": 20
+  },
+  "logging": {
+    "level": "INFO",
+    "maxSignalLog": 500
+  }
+}

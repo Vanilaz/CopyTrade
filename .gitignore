@@ -1,0 +1,24 @@
+node_modules/
+.env
+
+# Build outputs
+build/
+dist/
+
+# MT5 Compiled EAs
+*.ex5
+*.ex4
+
+# Exclude QuantTrader Source Code (Proprietary)
+MQL5/Include/QuantTrader/
+MQL5/Experts/QuantTrader/
+MQL5/Experts/QuantTraderPro.mq5
+QuantTrader*.ex5
+.next/
+out/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+*.log

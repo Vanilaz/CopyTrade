@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CopyTrade Dashboard — Real-time Monitor</title>
+    <meta name="description" content="CopyTrade MT5 real-time monitoring dashboard">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        :root {
+            --bg-base: #050505;
+            --bg-surface: #0f1115;
+            --bg-card: rgba(20, 23, 31, 0.6);
+            --bg-card-hover: rgba(30, 34, 45, 0.8);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.15);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --accent-primary: #3b82f6;     /* Blue */
+            --accent-secondary: #8b5cf6;   /* Purple */
+            --accent-success: #10b981;     /* Green */
+            --accent-warning: #f59e0b;     /* Orange */
+            --accent-danger: #ef4444;      /* Red */
+            --accent-info: #0ea5e9;        /* Light blue */
+
+            --radius-lg: 16px;
+            --radius-md: 12px;
+            --radius-sm: 8px;
+            
+            --shadow-glow: 0 0 20px rgba(59, 130, 246, 0.15);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.5;
+        }
+
+        /* ─── Animated Mesh Background ─── */
+        .ambient-bg {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            z-index: 0;
+            pointer-events: none;
+            background: 
+                radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.08), transparent 25%);
+            filter: blur(60px);
+        }
+
+        /* ─── Top Navigation ─── */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(15, 17, 21, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-logo {
+            width: 42px;
+            height: 42px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 800;
+            color: white;
+            box-shadow: var(--shadow-glow);
+        }
+
+        .brand-text h1 {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #fff, #94a3b8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-text span {
+            font-size: 13px;
+            font-weight: 400;
+            color: var(--text-muted);
+            -webkit-text-fill-color: var(--text-muted);
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            transition: all 0.3s ease;
+        }
+
+        .status-badge.connected {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: var(--accent-success);
+        }
+
+        .status-badge.disconnected {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--accent-danger);
+        }
+
+        .pulse-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        .connected .pulse-indicator {
+            box-shadow: 0 0 10px var(--accent-success);
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .4; }
+        }
+
+        /* ─── Layout ─── */
+        .container {
+            position: relative;
+            z-index: 1;
+            padding: 32px;
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        /* ─── Hero Stats ─── */
+        .hero-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .stat-box {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            transition: transform 0.2s, border-color 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .stat-box:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-hover);
+        }
+
+        .stat-box::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+        }
+
+        /* Specific accents for stat boxes */
+        .stat-box:nth-child(1)::after { background: var(--accent-primary); }
+        .stat-box:nth-child(2)::after { background: var(--accent-success); }
+        .stat-box:nth-child(3)::after { background: var(--accent-secondary); }
+        .stat-box:nth-child(4)::after { background: var(--accent-warning); }
+
+        .stat-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-primary);
+            line-height: 1;
+        }
+
+        .stat-footer {
+            margin-top: 12px;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        /* ─── Grid Dashboard Panels ─── */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+        }
+
+        .panel {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            backdrop-filter: blur(10px);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .panel-title {
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-body {
+            padding: 0;
+            flex: 1;
+            max-height: 350px;
+            overflow-y: auto;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+
+        /* ─── Lists ─── */
+        .list-item {
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            transition: background 0.2s;
+        }
+        
+        .list-item:hover { background: var(--bg-card-hover); }
+        .list-item:last-child { border-bottom: none; }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 16px;
+        }
+
+        .avatar.master { background: rgba(245, 158, 11, 0.1); color: var(--accent-warning); border: 1px solid rgba(245, 158, 11, 0.2); }
+        .avatar.slave { background: rgba(59, 130, 246, 0.1); color: var(--accent-primary); border: 1px solid rgba(59, 130, 246, 0.2); }
+
+        .item-info { flex: 1; }
+        .item-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+        .item-sub { font-size: 13px; color: var(--text-muted); }
+
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+        }
+        .status-dot.online { background: var(--accent-success); box-shadow: 0 0 8px var(--accent-success); }
+        .status-dot.offline { background: var(--accent-danger); opacity: 0.5; }
+
+        /* ─── Signal Terminal ─── */
+        .terminal-panel {
+            grid-column: 1 / -1;
+        }
+
+        .btn-clear {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: var(--radius-sm);
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-clear:hover {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-danger);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .signal-row {
+            padding: 12px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        .signal-row:hover { background: var(--bg-card-hover); }
+
+        .sig-type {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            width: 70px;
+            text-align: center;
+            letter-spacing: 0.05em;
+        }
+        
+        .sig-type.open { background: rgba(16, 185, 129, 0.1); color: var(--accent-success); }
+        .sig-type.close { background: rgba(239, 68, 68, 0.1); color: var(--accent-danger); }
+        .sig-type.modify { background: rgba(59, 130, 246, 0.1); color: var(--accent-info); }
+
+        .sig-symbol { font-weight: 700; color: #fff; width: 80px; }
+        
+        .sig-details { 
+            flex: 1; 
+            display: flex; 
+            align-items: center; 
+            gap: 16px; 
+            color: var(--text-secondary); 
+        }
+
+        .sig-badge {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        
+        .sig-match {
+            color: var(--accent-warning);
+        }
+
+        .sig-time { color: var(--text-muted); font-size: 12px; }
+
+        .empty-state {
+            padding: 48px 24px;
+            text-align: center;
+            color: var(--text-muted);
+        }
+        .empty-emoji { font-size: 32px; margin-bottom: 16px; opacity: 0.5; }
+
+    </style>
+</head>
+<body>
+
+    <div class="ambient-bg"></div>
+
+    <nav class="navbar">
+        <div class="brand">
+            <div class="brand-logo">CT</div>
+            <div class="brand-text">
+                <h1>CopyTrade Pro</h1>
+                <span>Institutional cross-broker execution</span>
+            </div>
+        </div>
+        <div id="connectionBadge" class="status-badge disconnected">
+            <div class="pulse-indicator"></div>
+            <span id="connectionText">Connecting...</span>
+        </div>
+    </nav>
+
+    <main class="container">
+        
+        <div class="hero-stats">
+            <div class="stat-box">
+                <div class="stat-title">🟢 Active Masters</div>
+                <div class="stat-value" id="masterCount">0</div>
+                <div class="stat-footer">Broadcasting signals</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-title">🔵 Connected Slaves</div>
+                <div class="stat-value" id="slaveCount">0</div>
+                <div class="stat-footer">Following strategies</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-title">⚡ Total Executions</div>
+                <div class="stat-value" id="signalCount">0</div>
+                <div class="stat-footer" id="lastSignalTime">No signals yet</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-title">⏱️ System Uptime</div>
+                <div class="stat-value" id="uptime">0s</div>
+                <div class="stat-footer">Zero downtime</div>
+            </div>
+        </div>
+
+        <div class="dashboard-grid">
+            
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Master Accounts</div>
+                </div>
+                <div class="panel-body" id="mastersList">
+                    <div class="empty-state">
+                        <div class="empty-emoji">📡</div>
+                        Waiting for Master terminals
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <div class="panel-title">Slave Accounts</div>
+                </div>
+                <div class="panel-body" id="slavesList">
+                    <div class="empty-state">
+                        <div class="empty-emoji">⏳</div>
+                        Waiting for Slave terminals
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel terminal-panel">
+                <div class="panel-header">
+                    <div class="panel-title">Execution Terminal</div>
+                    <button class="btn-clear" onclick="clearSignals()">Clear Terminal</button>
+                </div>
+                <div class="panel-body" id="signalLog" style="max-height: 400px;">
+                    <div class="empty-state">
+                        <div class="empty-emoji">📭</div>
+                        System idle. Waiting for trade activities.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        let ws = null;
+        let signals = [];
+        const startTime = Date.now();
+
+        function connectWebSocket() {
+            const wsUrl = `ws://${window.location.hostname}:${window.location.port}`;
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => updateConnectionStatus(true);
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    if(msg.type === 'status') updateStatus(msg.data);
+                    if(msg.type === 'signal') addSignal(msg.data);
+                    if(msg.type === 'signalHistory') { signals = msg.data || []; renderSignals(); }
+                } catch(e) {}
+            };
+            ws.onclose = () => { updateConnectionStatus(false); setTimeout(connectWebSocket, 3000); };
+            ws.onerror = () => ws.close();
+        }
+
+        function updateStatus(status) {
+            document.getElementById('masterCount').textContent = status.masters.length;
+            document.getElementById('slaveCount').textContent = status.slaves.length;
+            document.getElementById('signalCount').textContent = status.signalCount;
+
+            const mastersEl = document.getElementById('mastersList');
+            if (status.masters.length === 0) {
+                mastersEl.innerHTML = '<div class="empty-state"><div class="empty-emoji">📡</div>Waiting for Master</div>';
+            } else {
+                mastersEl.innerHTML = status.masters.map(m => `
+                    <div class="list-item">
+                        <div class="avatar master">M</div>
+                        <div class="item-info">
+                            <div class="item-title">${escapeHtml(m.id)}</div>
+                            <div class="item-sub">Ping: ${formatTime(m.lastHeartbeat)}</div>
+                        </div>
+                        <div class="status-dot ${m.connected ? 'online' : 'offline'}"></div>
+                    </div>
+                `).join('');
+            }
+
+            const slavesEl = document.getElementById('slavesList');
+            if (status.slaves.length === 0) {
+                slavesEl.innerHTML = '<div class="empty-state"><div class="empty-emoji">⏳</div>Waiting for Slave</div>';
+            } else {
+                slavesEl.innerHTML = status.slaves.map(s => `
+                    <div class="list-item">
+                        <div class="avatar slave">S</div>
+                        <div class="item-info">
+                            <div class="item-title">${escapeHtml(s.id)}</div>
+                            <div class="item-sub">Follow: ${escapeHtml(s.subscribedTo || 'ALL')}</div>
+                        </div>
+                        <div class="status-dot ${s.connected ? 'online' : 'offline'}"></div>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function addSignal(signal) {
+            signals.push(signal);
+            if (signals.length > 200) signals.shift();
+            document.getElementById('signalCount').textContent = parseInt(document.getElementById('signalCount').textContent) + 1;
+            document.getElementById('lastSignalTime').textContent = formatTime(signal.time);
+            renderSignals();
+        }
+
+        function renderSignals() {
+            const el = document.getElementById('signalLog');
+            if (signals.length === 0) {
+                el.innerHTML = '<div class="empty-state"><div class="empty-emoji">📭</div>No signals</div>';
+                return;
+            }
+
+            const reversed = [...signals].reverse().slice(0, 100);
+            el.innerHTML = reversed.map(sig => {
+                const typeClass = (sig.type || '').split('_')[0].toLowerCase(); // OPEN/CLOSE
+                const priceMatchStr = sig.fillPrice && sig.fillPrice > 0 
+                                      ? `<span class="sig-badge sig-match">Fill: ${sig.fillPrice.toFixed(5)}</span>`
+                                      : '';
+                const latencyStr = sig.fillTimeMs ? `<span class="sig-badge">${sig.fillTimeMs}ms latency</span>` : '';
+
+                return `
+                    <div class="signal-row">
+                        <div class="sig-type ${typeClass}">${sig.type || 'SYS'}</div>
+                        <div class="sig-symbol">${escapeHtml(sig.symbol || '—')}</div>
+                        <div class="sig-details">
+                            <span class="sig-badge">${sig.lots ? sig.lots.toFixed(2) + 'L' : '-'}</span>
+                            ${priceMatchStr}
+                            ${latencyStr}
+                            <span>${escapeHtml(sig.masterID || '')}</span>
+                        </div>
+                        <div class="sig-time">${formatTime(sig.time)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function formatTime(ts) {
+            if (!ts) return '—';
+            const d = new Date(typeof ts === 'number' ? ts : parseInt(ts) * 1000);
+            return d.toLocaleTimeString('en-US', { hour12: false }) || '—';
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str || '';
+            return div.innerHTML;
+        }
+
+        function clearSignals() { signals = []; renderSignals(); }
+
+        function updateConnectionStatus(connected) {
+            const badge = document.getElementById('connectionBadge');
+            const text = document.getElementById('connectionText');
+            if (connected) {
+                badge.className = 'status-badge connected';
+                text.textContent = 'SYSTEM ONLINE';
+            } else {
+                badge.className = 'status-badge disconnected';
+                text.textContent = 'SYSTEM OFFLINE';
+            }
+        }
+
+        setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const h = Math.floor(elapsed / 3600);
+            const m = Math.floor((elapsed % 3600) / 60);
+            const s = elapsed % 60;
+            document.getElementById('uptime').textContent = 
+                (h > 0 ? h + 'h ' : '') + (m > 0 || h > 0 ? m + 'm ' : '') + s + 's';
+        }, 1000);
+
+        connectWebSocket();
+    </script>
+</body>
+</html>
