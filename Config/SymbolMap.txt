@@ -1,0 +1,60 @@
+# ========================================================
+# CopyTrade Pro - Manual Symbol Map Template
+# Format: MasterSymbol,SlaveSymbol
+# Description: จับคู่เหรียญที่ชื่อต่างกันแบบสิ้นเชิงข้าม Broker
+# ========================================================
+
+# --- โลหะมีค่า (Precious Metals) ---
+XAUUSD,GOLD
+GOLD,XAUUSD
+XAGUSD,SILVER
+SILVER,XAGUSD
+
+# --- พลังงาน (Energies) ---
+USOUSD,WTI
+WTICrude,USOUSD
+UKOUSD,BRENT
+BRENT,UKOUSD
+XTIUSD,WTI
+XBRUSD,BRENT
+NGAS,NATGAS
+
+# --- ดัชนีตลาดหุ้น (Indices) ---
+# ดาวโจนส์ (US30)
+US30,DOWJONES
+US30,DJI
+DJ30,US30
+DOW,US30
+
+# แนสแด็ก (US100)
+US100,NASDAQ
+NAS100,US100
+NDX,US100
+NQ100,US100
+
+# เอสแอนด์พี 500 (US500)
+US500,SPX500
+SPX500,US500
+S&P500,US500
+SP500,US500
+
+# ดัชนีเยอรมัน (GER40 / DAX)
+GER40,DAX
+GER40,DAX40
+DAX30,GER40
+DAX,GER40
+
+# ดัชนีญี่ปุ่น (JPN225 / NIKKEI)
+JPN225,NIKKEI
+JP225,JPN225
+NIKKEI225,JPN225
+
+# --- คริปโต (Cryptocurrencies) ---
+BTCUSD,BITCOIN
+ETHUSD,ETHEREUM
+
+# ========================================================
+# หมายเหตุ: 
+# หาก Broker มีคำนำหน้าหรือต่อท้าย (Prefix/Suffix) เช่น XAUUSD.std ไม่จำเป็นต้องเอามาใส่ที่นี่! 
+# ระบบ Fuzzy Deep Scan จะตัดนามสกุลและจับคู่ให้แบบอัตโนมัติแล้วครับ
+# ที่นี่ใช้เฉพาะกรณีเปลี่ยนศัพท์ไปเลย เช่น XAUUSD ไปเป็น GOLD เท่านั้นครับ

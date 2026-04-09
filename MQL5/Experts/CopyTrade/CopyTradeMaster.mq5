@@ -59,6 +59,10 @@ struct PositionInfo
 PositionInfo      g_positions[];
 int               g_posCount = 0;
 
+//--- ★ FIX: Track position IDs ที่ส่ง SIGNAL_OPEN ไปแล้ว (safety net)
+long              g_signaledPosIDs[];
+int               g_signaledCount = 0;
+
 //--- State
 bool              g_initialized = false;
 datetime          g_lastHeartbeat = 0;
@@ -110,12 +114,17 @@ int OnInit()
    //--- Snapshot current positions
    SnapshotPositions();
 
+   //--- ★ ไม่ mark position เดิมเป็น "signaled" ตอน init
+   //--- ปล่อยให้ Safety Net (CheckNewPositions) ส่ง SIGNAL_OPEN ทุกตัว
+   //--- Slave จะกรอง duplicate ด้วย FindSlaveTicket() →
+   //--- ผลลัพธ์: ทุกครั้งที่ Master restart จะ SYNC ให้ Slave มีไม้ตรงกันเสมอ
+
    //--- Set timer
    if(!EventSetMillisecondTimer(InpTimerMs))
       EventSetTimer(1);
 
    g_initialized = true;
-   CTLog(LOG_INFO, "✅ Master EA initialized — monitoring " + IntegerToString(g_posCount) + " positions");
+   CTLog(LOG_INFO, "✅ Master EA initialized — monitoring " + IntegerToString(g_posCount) + " positions (Safety Net will sync)");
    return INIT_SUCCEEDED;
 }
 
@@ -171,8 +180,22 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
    long dealTicket = trans.deal;
    if(dealTicket <= 0) return;
 
-   // Get deal info
-   if(!HistoryDealSelect(dealTicket)) return;
+   // ★ FIX: Retry HistoryDealSelect — deal อาจยังไม่พร้อมใน history
+   bool selected = false;
+   for(int retry = 0; retry < 10; retry++)
+   {
+      if(HistoryDealSelect(dealTicket))
+      {
+         selected = true;
+         break;
+      }
+      Sleep(20);  // รอ 20ms แล้วลองใหม่ (สูงสุด 200ms)
+   }
+   if(!selected)
+   {
+      CTLog(LOG_WARN, "⚠ HistoryDealSelect FAILED after 10 retries — deal #" + IntegerToString(dealTicket));
+      return;
+   }
 
    ENUM_DEAL_ENTRY entry = (ENUM_DEAL_ENTRY)HistoryDealGetInteger(dealTicket, DEAL_ENTRY);
    ENUM_DEAL_TYPE  dtype = (ENUM_DEAL_TYPE)HistoryDealGetInteger(dealTicket, DEAL_TYPE);
@@ -220,6 +243,9 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
 
       CTLog(LOG_INFO, "📤 SIGNAL OPEN: " + OrderTypeToStr(sig.orderType) + " " +
             symbol + " " + DoubleToString(lots, 2) + " lots @ " + DoubleToString(price, 5));
+
+      // ★ FIX: Mark position as signaled
+      MarkPositionSignaled(posID);
    }
    else if(entry == DEAL_ENTRY_OUT)
    {
@@ -248,6 +274,9 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
       // Then open new direction
       sig.type = SIGNAL_OPEN;
       sig.orderType = (dtype == DEAL_TYPE_BUY) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+
+      // ★ FIX: Mark position as signaled
+      MarkPositionSignaled(posID);
 
       CTLog(LOG_INFO, "📤 SIGNAL REVERSE: " + symbol);
    }
@@ -285,6 +314,9 @@ void ProcessPendingDelete(const MqlTradeTransaction &trans)
 void OnTimer()
 {
    if(!g_initialized) return;
+
+   //--- ★ FIX: Safety Net — ตรวจจับ position ใหม่ที่ OnTradeTransaction พลาด
+   CheckNewPositions();
 
    //--- Check position modifications (SL/TP changes)
    CheckModifications();
@@ -478,6 +510,97 @@ void SnapshotPositions()
       g_positions[g_posCount].magic       = (int)magic;
       g_posCount++;
    }
+}
+
+//+------------------------------------------------------------------+
+//| ★ Safety Net: ตรวจจับ position ใหม่ที่ OnTradeTransaction พลาด    |
+//| เปรียบเทียบ position ปัจจุบันกับ list ที่ส่ง signal ไปแล้ว          |
+//+------------------------------------------------------------------+
+void CheckNewPositions()
+{
+   for(int i = PositionsTotal() - 1; i >= 0; i--)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket <= 0) continue;
+      if(!PositionSelectByTicket(ticket)) continue;
+
+      string comment = PositionGetString(POSITION_COMMENT);
+      long magic = PositionGetInteger(POSITION_MAGIC);
+
+      // Skip CopyTrade's own
+      if(StringFind(comment, CT_COMMENT_PREFIX) >= 0) continue;
+      if(InpMagicFilter > 0 && magic != InpMagicFilter) continue;
+
+      long posID = (long)ticket;
+
+      // ถ้ายังไม่เคยส่ง signal → ส่งเลย!
+      if(!IsPositionSignaled(posID))
+      {
+         string symbol = PositionGetString(POSITION_SYMBOL);
+         int    posType = (int)PositionGetInteger(POSITION_TYPE);
+         double lots    = PositionGetDouble(POSITION_VOLUME);
+         double price   = PositionGetDouble(POSITION_PRICE_OPEN);
+         double sl      = PositionGetDouble(POSITION_SL);
+         double tp      = PositionGetDouble(POSITION_TP);
+
+         TradeSignal sig;
+         sig.Init();
+         sig.masterID   = g_masterID;
+         sig.type       = SIGNAL_OPEN;
+         sig.ticket     = posID;
+         sig.positionID = posID;
+         sig.symbol     = symbol;
+         sig.lots       = lots;
+         sig.price      = price;
+         sig.fillPrice  = price;
+         sig.fillTimeMs = GetTickCount64();
+         sig.sl         = sl;
+         sig.tp         = tp;
+         sig.magic      = (int)magic;
+         sig.orderType  = (posType == POSITION_TYPE_BUY) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+
+         CTLog(LOG_WARN, "🔄 SAFETY NET: Caught missed position #" + IntegerToString(posID) +
+               " " + symbol + " " + DoubleToString(lots, 2) + " lots");
+
+         MarkPositionSignaled(posID);
+         BroadcastSignal(sig);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Mark position ID as already signaled                              |
+//+------------------------------------------------------------------+
+void MarkPositionSignaled(long posID)
+{
+   // ป้องกัน duplicate
+   if(IsPositionSignaled(posID)) return;
+
+   // จำกัดขนาด array — ลบครึ่งเก่าถ้าเกิน 500
+   if(g_signaledCount >= 500)
+   {
+      int half = 250;
+      for(int i = 0; i < g_signaledCount - half; i++)
+         g_signaledPosIDs[i] = g_signaledPosIDs[i + half];
+      g_signaledCount -= half;
+   }
+
+   g_signaledCount++;
+   ArrayResize(g_signaledPosIDs, g_signaledCount);
+   g_signaledPosIDs[g_signaledCount - 1] = posID;
+}
+
+//+------------------------------------------------------------------+
+//| Check if position was already signaled                            |
+//+------------------------------------------------------------------+
+bool IsPositionSignaled(long posID)
+{
+   for(int i = 0; i < g_signaledCount; i++)
+   {
+      if(g_signaledPosIDs[i] == posID)
+         return true;
+   }
+   return false;
 }
 
 //+------------------------------------------------------------------+

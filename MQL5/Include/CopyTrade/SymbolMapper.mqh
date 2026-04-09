@@ -133,17 +133,27 @@ string CSymbolMapper::MapSymbol(string masterSymbol)
    if(IsSymbolAvailable(masterSymbol))
       return masterSymbol;
 
-   // 5. Auto-detect: try common suffixes
+   // 5. Auto-detect: try common suffixes by extracting base symbol first
    if(m_autoDetect)
    {
-      string suffixes[] = {"", "m", ".i", ".e", "-ECN", ".pro", "_SB", ".r", ".s", ".std", "std","c"};
+      string baseMaster = masterSymbol;
+      
+      // Remove common separators to find base symbol (e.g. XAUUSD.r -> XAUUSD)
+      int sepIdx = StringFind(baseMaster, ".");
+      if (sepIdx > 0) baseMaster = StringSubstr(baseMaster, 0, sepIdx);
+      sepIdx = StringFind(baseMaster, "-");
+      if (sepIdx > 0) baseMaster = StringSubstr(baseMaster, 0, sepIdx);
+      sepIdx = StringFind(baseMaster, "_");
+      if (sepIdx > 0) baseMaster = StringSubstr(baseMaster, 0, sepIdx);
+      
+      // First try suffixes on the clean baseMaster
+      string suffixes[] = {"", "m", ".i", ".e", "-ECN", ".pro", "_SB", ".r", ".s", ".std", "std", "c"};
       for(int i = 0; i < ArraySize(suffixes); i++)
       {
-         string trySymbol = masterSymbol + suffixes[i];
+         string trySymbol = baseMaster + suffixes[i];
          if(IsSymbolAvailable(trySymbol))
          {
             CTLog(LOG_INFO, "Auto-detected mapping: " + masterSymbol + " → " + trySymbol);
-            // Cache it
             int idx = m_mapSize;
             m_mapSize++;
             ArrayResize(m_map, m_mapSize);
@@ -157,7 +167,7 @@ string CSymbolMapper::MapSymbol(string masterSymbol)
       string prefixes[] = {"", "m.", "i.", "#"};
       for(int i = 0; i < ArraySize(prefixes); i++)
       {
-         string trySymbol = prefixes[i] + masterSymbol;
+         string trySymbol = prefixes[i] + baseMaster;
          if(IsSymbolAvailable(trySymbol))
          {
             CTLog(LOG_INFO, "Auto-detected mapping: " + masterSymbol + " → " + trySymbol);
@@ -179,15 +189,15 @@ string CSymbolMapper::MapSymbol(string masterSymbol)
       for(int i = 0; i < total; i++)
       {
          string sym = SymbolName(i, false);
-         // Check if one is a substring of the other
-         if(StringFind(sym, masterSymbol) >= 0 || StringFind(masterSymbol, sym) >= 0)
+         // Check if one is a substring of the other using the BASE symbol, not the suffixed one
+         if(StringFind(sym, baseMaster) >= 0 || StringFind(baseMaster, sym) >= 0)
          {
             if(IsSymbolAvailable(sym))
             {
-               int matchLen = (int)MathMin(StringLen(sym), StringLen(masterSymbol));
-               int lenDiff = (int)MathAbs(StringLen(sym) - StringLen(masterSymbol));
+               int matchLen = (int)MathMin(StringLen(sym), StringLen(baseMaster));
+               int lenDiff = (int)MathAbs(StringLen(sym) - StringLen(baseMaster));
                
-               // Maximize overlap, then minimize remainder (avoids 'USD' matching 'EURUSD' when better options exist)
+               // Maximize overlap, then minimize remainder
                if(matchLen > bestMatchLen || (matchLen == bestMatchLen && lenDiff < minLenDiff))
                {
                   bestMatchLen = matchLen;

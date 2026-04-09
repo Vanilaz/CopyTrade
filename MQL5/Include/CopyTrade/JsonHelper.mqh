@@ -156,14 +156,25 @@ string CreateAuthJson(string role, string id, string token)
 }
 
 //+------------------------------------------------------------------+
-//| Create heartbeat JSON                                             |
+//| Create heartbeat JSON (Enriched with Financial Metrics)           |
 //+------------------------------------------------------------------+
 string CreateHeartbeatJson(string id, string role)
 {
+   double balance     = AccountInfoDouble(ACCOUNT_BALANCE);
+   double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
+   double marginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
+   double profit      = AccountInfoDouble(ACCOUNT_PROFIT);
+   int    positions   = PositionsTotal();
+
    string json = "{";
    json += "\"action\":\"heartbeat\",";
    json += "\"id\":\"" + id + "\",";
    json += "\"role\":\"" + role + "\",";
+   json += "\"balance\":" + DoubleToString(balance, 2) + ",";
+   json += "\"equity\":" + DoubleToString(equity, 2) + ",";
+   json += "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ",";
+   json += "\"floatingPnL\":" + DoubleToString(profit, 2) + ",";
+   json += "\"positions\":" + IntegerToString(positions) + ",";
    json += "\"ts\":" + IntegerToString((long)TimeCurrent());
    json += "}";
    return json;

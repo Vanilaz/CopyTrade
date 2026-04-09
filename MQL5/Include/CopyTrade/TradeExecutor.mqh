@@ -88,7 +88,7 @@ CTradeExecutor::CTradeExecutor()
    m_matchSlippage  = 5;     // Match mode: ยอมลื่นแค่ 5 points
    m_stalePriceMs   = 2000;  // ถ้า signal เก่าเกิน 2 วินาที ใช้ market แทน
    m_trade.SetDeviationInPoints(m_slippage);
-   m_trade.SetTypeFilling(ORDER_FILLING_IOC);
+   // ★ FIX: ไม่ hard-code filling mode — จะ detect อัตโนมัติตอน ExecuteOpen
    m_trade.SetAsyncMode(false);
 }
 
@@ -116,6 +116,15 @@ long CTradeExecutor::ExecuteOpen(const TradeSignal &sig, string slaveSymbol)
       CTLog(LOG_ERROR, "ExecuteOpen: Invalid lot: " + DoubleToString(lots));
       return -1;
    }
+
+   // ★ FIX: Auto-detect filling mode ที่ Broker รองรับ
+   long fillPolicy = SymbolInfoInteger(slaveSymbol, SYMBOL_FILLING_MODE);
+   if((fillPolicy & SYMBOL_FILLING_IOC) != 0)
+      m_trade.SetTypeFilling(ORDER_FILLING_IOC);
+   else if((fillPolicy & SYMBOL_FILLING_FOK) != 0)
+      m_trade.SetTypeFilling(ORDER_FILLING_FOK);
+   else
+      m_trade.SetTypeFilling(ORDER_FILLING_RETURN);
 
    // Get current market price
    double ask = SymbolInfoDouble(slaveSymbol, SYMBOL_ASK);

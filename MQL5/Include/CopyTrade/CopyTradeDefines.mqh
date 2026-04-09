@@ -112,6 +112,11 @@ struct TradeSignal
 
    void Init()
    {
+      // ★ FIX: signalID ต้อง unique เด็ดขาด — ป้องกัน filename collision
+      static ulong s_nextID = 0;
+      if(s_nextID == 0) s_nextID = GetTickCount64();  // เริ่มจาก system uptime (ป้องกันซ้ำข้าม session)
+      s_nextID++;
+
       version       = CT_VERSION;
       masterID      = "";
       slaveID       = "";
@@ -130,7 +135,7 @@ struct TradeSignal
       deviation     = 20;
       closePercent  = 0;
       timestamp     = TimeCurrent();
-      signalID      = GetTickCount64();
+      signalID      = s_nextID;
       fillTimeMs    = GetTickCount64();
    }
 };
