@@ -1157,7 +1157,8 @@
         // ─── WebSocket ───
         function connectWebSocket() {
             if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
-            const wsUrl = `ws://${window.location.hostname}:${window.location.port}?passcode=${passcode}`;
+            const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${wsProto}//${window.location.host}?passcode=${passcode}`;
             ws = new WebSocket(wsUrl);
 
             ws.onopen = () => updateConnectionStatus(true);
