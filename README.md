@@ -1,7 +1,7 @@
 # CopyTrade MT5 — ระบบ Copy Trade ข้ามเครื่อง ข้าม Broker (Institutional Grade)
 
-> **Version 1.1** — Signal Reliability Patch  
-> แก้ไข Critical Bugs: Signal Loss, Filename Collision, Filling Mode Auto-Detect
+> **Version 1.2** — Cross-Broker Precision & Dashboard Overhaul  
+> แก้ไข Critical Bugs: ราคา Slave ไม่ตรง Master, Latency ข้าม Broker, Dashboard แสดงข้อมูลผิด
 
 ---
 
@@ -12,13 +12,13 @@
 | ✅ **Fuzzy Deep Scan** | จับคู่ชื่อ Symbol ข้าม Broker อัตโนมัติ (เช่น XAUUSD -> XAUUSD.std) โบรกเกอร์ชื่อแปลกแค่ไหนก็หากันเจอ |
 | ✅ **Local Copy** | Copy ในเครื่องเดียวกัน / VPS เดียวกัน ผ่าน Shared Files (เร็ว <10ms) |
 | ✅ **Remote Copy** | Copy ข้าม VPS หรือคนละประเทศผ่าน TCP Socket + Relay Server (Node.js) |
-| ✅ **Price Matching** | จับราคา fill จริงของ Master แล้วส่งให้ Slave ยิงตามราคาเดิมด้วย slippage แค่ 5 pt |
+| ✅ **Price Matching** | จับราคา fill จริงของ Master แล้วส่งให้ Slave ยิงตามราคาเดิมด้วย deviation 30 pt (ปรับได้) |
 | ✅ **Auto Account ID** | ผูกระบบด้วยเลขบัญชีเข้าเทรด Master ทันที ไม่ต้องกรอก Token ให้ยุ่งยาก |
 | ✅ **Exact Match SL/TP**| คำนวณความห่างของ SL/TP จาก Master แล้วแปลงเป็นระยะ Point ให้ Slave เป๊ะๆ |
 | ✅ **Pending Orders** | รองรับไม้ Pending ทุกประเภท (Buy Limit, Sell Stop, etc.) |
 | ✅ **Auto-Reconnect** | หากเน็ตหลุด / เซิร์ฟเวอร์รีสตาร์ท EA จะเชื่อมต่อกลับเองแบบอัตโนมัติ |
 | ✅ **Safety Net** | ตรวจจับ Position ที่หลุดจาก OnTradeTransaction อัตโนมัติ — ไม่มีสัญญาณตกหล่น |
-| ✅ **Auto-Sync on Restart** | เมื่อ Master EA รีสตาร์ท จะ Sync Position ทั้งหมดให้ Slave ตรงกันทันที |
+| ✅ **Smart Sync** | เลือกได้ว่าจะ sync position เดิมที่เปิดอยู่ก่อน EA หรือ copy เฉพาะไม้ใหม่ (InpSyncExisting) |
 | ✅ **Filling Mode Auto-Detect** | ตรวจจับ Filling Policy (IOC/FOK/RETURN) ของ Broker อัตโนมัติ ไม่ต้องตั้งค่าเอง |
 | ✅ **Bento Dashboard** | แจ้งเตือนสถานะบัญชีแบบสดๆ (Live) ด้วยหน้าต่างบัญชาการสไตล์ Bento Box |
 
@@ -210,7 +210,7 @@ set TCP_PORT=5555 && set HTTP_PORT=8080 && node server.js
 ```
 
 - **Master EA** → เทรดปกติ → จับ deal → ส่ง signal (ไฟล์ JSON หรือ TCP)
-- **Local Mode** → Master เขียนไฟล์ไปยัง `Common Files\copytrade\` → Slave อ่านทุก 100ms
+- **Local Mode** → Master เขียนไฟล์ไปยัง `Common Files\copytrade\` → Slave อ่านทุก 50ms
 - **Remote Mode** → Relay Server → รับ signal → กระจายส่งไปยัง Slave ทุกตัว
 - **Slave EA** → รับ signal → เปิดออเดอร์ตาม Master (รองรับ Price Matching)
 - **Dashboard** → เชื่อมต่อผ่าน WebSocket → แสดงผลแบบ Real-time
@@ -270,8 +270,8 @@ set TCP_PORT=5555 && set HTTP_PORT=8080 && node server.js
 
 | Mode | การทำงาน | แนะนำสำหรับ |
 |---|---|---|
-| `EXEC_MARKET` | ใช้ราคาตลาดปัจจุบัน (แบบเดิม) | ข้าม Broker ที่ราคาต่างกัน |
-| **`EXEC_MATCH_MASTER`** ⭐ | ส่งราคาที่ Master fill จริง + tight slippage 5pt | **Broker เดียวกัน (แนะนำ!)** |
+| `EXEC_MARKET` | ใช้ราคาตลาดปัจจุบัน (แบบเดิม) | ข้าม Broker ที่ราคาต่างกันมาก |
+| **`EXEC_MATCH_MASTER`** ⭐ | ส่งราคาที่ Master fill จริง + 3-tier deviation (30pt default) | **แนะนำ! ใช้ได้ทั้ง Broker เดียวกัน & ข้าม Broker** |
 | `EXEC_LIMIT_CHASE` | วาง Limit Order ที่ราคา Master → รอ 3 วิ → ถ้าไม่ fill ก็ market | ตลาดช้า, ต้องการราคาแม่นยำ |
 
 ---
@@ -303,18 +303,18 @@ set TCP_PORT=5555 && set HTTP_PORT=8080 && node server.js
 ### Signal Delivery — ชั้นป้องกัน 3 ระดับ
 
 ```
-ชั้นที่ 1: OnTradeTransaction → HistoryDealSelect (retry 10 ครั้ง)
+ชั้นที่ 1: OnTradeTransaction → HistoryDealSelect (retry 20 ครั้ง, ทุก 5ms)
   ├─ สำเร็จ → ส่ง Signal ทันที ✅
   └─ ล้มเหลว → ตกไปชั้นที่ 2
 
-ชั้นที่ 2: Safety Net (OnTimer ทุก 100ms)
+ชั้นที่ 2: Safety Net (OnTimer ทุก 50ms)
   ├─ สแกน Positions ทั้งหมด
   ├─ เจอ Position ที่ยังไม่เคยส่ง Signal → ส่งทันที ✅
   └─ ไม่มีตกหล่น
 
-ชั้นที่ 3: Auto-Sync on Restart
-  ├─ Master EA รีสตาร์ท → ส่ง Signal ทุก Position ใหม่
-  └─ Slave กรอง Duplicate ด้วย FindSlaveTicket() → ไม่มีไม้ซ้ำ ✅
+ชั้นที่ 3: Smart Sync on Startup
+  ├─ InpSyncExisting = false (default): ข้ามไม้เก่า → copy เฉพาะ trade ใหม่
+  └─ InpSyncExisting = true: sync ทุก position ให้ Slave (restart recovery)
 ```
 
 ### Filling Mode Auto-Detect
@@ -396,12 +396,85 @@ CopyTrade/
 - [ ] **MT5 Settings** — เปิด `Allow Algo Trading` + `Allow DLL Imports`
 - [ ] **Node.js Version** — ใช้ LTS เท่านั้น (18.x หรือ 20.x)
 - [ ] **ทดสอบ** — เปิด Demo Account ทดสอบก่อนใช้ Real เสมอ
-- [ ] **Execution Mode** — ถ้า Broker เดียวกัน ตั้ง `EXEC_MATCH_MASTER` ถ้าต่าง Broker ใช้ `EXEC_MARKET`
-- [ ] **Monitor** — เปิด Dashboard ดู Signal / Latency ตลอดเวลาในช่วงแรก
+- [ ] **Execution Mode** — แนะนำ `EXEC_MATCH_MASTER` ทั้ง Broker เดียวกัน & ข้าม Broker (3-tier auto fallback)
+- [ ] **SyncExisting** — ถ้ามี position เปิดอยู่ก่อนรัน EA ให้ใช้ค่า default `false` (ป้องกันเปิดซ้ำราคาไม่ตรง)
+- [ ] **Monitor** — เปิด Dashboard ดู Signal / สถานะบัญชี ตลอดเวลาในช่วงแรก
 
 ---
 
 ## 🔄 Changelog
+
+### v1.2 — Cross-Broker Precision & Dashboard Overhaul (2026-04-10)
+
+**🔴 แก้ไขบั๊กร้ายแรง (Critical Fixes):**
+
+- **Deviation ถูกเขียนทับ (TradeExecutor.mqh):**  
+  `SetDeviationInPoints(m_slippage)` รันหลังจาก match mode คำนวณ deviation เสร็จ → เขียนทับค่าที่คำนวณไว้ → `EXEC_MATCH_MASTER` **ไม่ทำงานเลย** ทุก order ออก market ด้วย default 20pt  
+  → ย้ายเข้า `else` branch ให้ใช้เฉพาะเมื่อไม่ได้ใช้ match mode
+
+- **Latency ข้าม Broker คำนวณผิด (TradeExecutor.mqh):**  
+  ใช้ `GetTickCount64()` (system uptime ของเครื่อง) วัด latency ระหว่าง Master กับ Slave → **คนละเครื่อง uptime ไม่เกี่ยวกัน** → ได้ latency เป็นพันล้าน ms → Tier 2 (ลอง master price) ไม่เคยทำงาน → fallback เป็น market ทุกครั้ง  
+  → เปลี่ยนเป็น `TimeCurrent()` (broker server time ที่ sync กันข้าม broker)  
+  → ลบ latency gate จาก Tier 2 → ลอง master price เสมอ ไม่ว่า latency จะเท่าไหร่
+
+- **Position เก่า sync ราคาไม่ตรง (CopyTradeMaster.mq5):**  
+  Master มี position เปิดอยู่ก่อน → รัน EA → Safety Net ส่ง SIGNAL_OPEN ทุกตัว → Slave เปิดไม้ใหม่ที่ราคาตลาดปัจจุบัน → **ราคาต่างจากที่ Master เปิดเดิม**  
+  → เพิ่ม `InpSyncExisting` (default: `false`) → mark position เดิมเป็น "signaled" → ไม่ sync ไปให้ Slave
+
+- **WebSocket สร้างคู่ (dashboard.html):**  
+  `connectWebSocket()` ถูกเรียก 2 ที่ (ใน auth check + ท้าย script) → สร้าง WS 2 connection → ข้อมูลทุกอย่าง render ซ้ำ 2 รอบ  
+  → เรียกที่เดียว + เพิ่ม guard ป้องกัน connection ซ้ำ
+
+**🟠 แก้ไข Dashboard แสดงข้อมูลผิด:**
+
+- **Latency แสดงตัวเลขมั่ว:**  
+  Signal Terminal แสดง `fillTimeMs` ดิบ (ค่า GetTickCount64 = system uptime เช่น 1,775,728,930,212 ms) เป็น "latency" → ตัวเลขไม่มีความหมาย  
+  → ลบออก เปลี่ยนเป็นแสดง signal age ด้วย `timeAgo()` (เช่น "3s ago", "2m ago")
+
+- **History Tab แสดง Role ผิด:**  
+  ใช้ `masterID.startsWith('M')` ตรวจว่า Master หรือ Slave → masterID เป็นเลขบัญชี เช่น "97035207" → ไม่เคยขึ้นต้นด้วย 'M' → **ทุกแถวแสดงเป็น Slave**  
+  → แก้เป็นแสดง "M" เสมอ (signal มาจาก Master ทั้งหมด)
+
+- **Master Panel ไม่แสดง Balance/Equity/PnL:**  
+  Slave Panel แสดงข้อมูลการเงินครบ แต่ Master Panel แสดงแค่ Margin Level กับ Positions  
+  → เพิ่ม Balance, Equity, Floating PnL ให้ Master Panel เหมือน Slave
+
+- **"Ping:" label ไม่ตรง:**  
+  เขียน "Ping:" แต่แสดง timestamp ของ heartbeat ล่าสุด (วันที่) ไม่ใช่ network latency  
+  → เปลี่ยนเป็น "Last seen:" + แสดงเวลาผ่านไป (เช่น "5s ago")
+
+- **Drawdown แสดงไม่ถูก:**  
+  คอลัมน์ Drawdown แสดง `currentDD` (DD ณ ตอนนี้) ซึ่งไม่ค่อยมีประโยชน์  
+  → เปลี่ยนเป็นแสดง `maxDrawdownPct` (DD สูงสุดตลอดกาล) เป็นค่าหลัก + currentDD เป็นค่ารอง
+
+- **Signal Count เพิ่มเรื่อยๆ ไม่ตรง:**  
+  Client-side increment ทุกครั้งที่รับ signal → เลื่อนไหลไม่ตรงกับ server  
+  → ใช้ `status.signalCount` จาก server โดยตรง
+
+- **Reset Stats ไม่ refresh หน้า:**  
+  กด Reset แล้วขึ้น alert "สำเร็จ" แต่ข้อมูลยังค้างเก่า  
+  → เพิ่ม `location.reload()` หลัง reset สำเร็จ
+
+**🟡 ปรับปรุง Latency (ลด worst-case จาก ~350ms เหลือ ~160ms):**
+
+| จุดที่ปรับ | เดิม | ใหม่ |
+|---|---|---|
+| HistoryDealSelect retry | 10 ครั้ง x 20ms = 200ms | 20 ครั้ง x 5ms = 100ms |
+| CT_POLL_MS (file polling) | 100ms | 50ms |
+| SocketRead timeout | 50ms | 10ms |
+| Slave Timer interval | 100ms | 50ms |
+| TradeExecutor retryDelay | 500ms | 150ms |
+| InpMatchSlippage default | 5 points (แน่นเกินสำหรับ Gold) | 30 points |
+| InpStalePriceMs | 2000ms | 5000ms (เผื่อ cross-broker) |
+
+**🟢 ปรับปรุงอื่นๆ:**
+
+- **Server (server.js):** เพิ่ม equity history tracking, sync monitor, risk metrics, reset-performance API
+- **JsonHelper.mqh:** แก้ positionDetails JSON ที่ comma ผิดตำแหน่ง → `[{...},,{...}]`
+- **Telegram Daily Report (server.js):** `'\\n'` (backslash ตัวอักษร) → `'\n'` (ขึ้นบรรทัดใหม่จริง)
+- **Dead Code Cleanup:** ลบ `formatPnL` function ที่ไม่ได้ใช้ออกจาก dashboard
+
+---
 
 ### v1.1 — Signal Reliability Patch (2026-04-09)
 
@@ -430,10 +503,11 @@ CopyTrade/
 ---
 
 ## 🛡 ข้อจำกัดที่ควรรู้
-1. **เรื่องของราคาข้าม Broker:** หากคุณเทรด Market Orders ระหว่างสองโบรกเกอร์ที่ราคาประเมินตลาดต่างกัน "ราคาเข้าของคุณ (Open Price) จะไม่มีทางเท่ากันเป๊ะ 100%" ฝั่ง Slave จะได้ราคาที่ดีที่สุดของโบรกเกอร์นั้นในวินาทีที่จับสัญญาณได้ (ซึ่งบ่อยครั้ง Slave อาจได้ราคาดีกว่า Master ด้วยซ้ำ)
-2. **Broker เดียวกัน:** ใช้โหมด `EXEC_MATCH_MASTER` จะช่วยให้ราคาตรงกันมากที่สุด (ต่างกันไม่เกิน 1-5 points)
-3. โฟลเดอร์ต้นขั้วทั้งหมด ต้องอยู่ใน `<MT5_Data_Folder>\MQL5\Include\CopyTrade\...` ห้ามเปลี่ยนชื่อโฟลเดอร์ไม่งั้น Include ไฟล์ไม่เจอ
+1. **เรื่องของราคาข้าม Broker:** หากเทรด Market Orders ระหว่างสองโบรกเกอร์ที่ราคาต่างกัน ราคาเข้าอาจไม่ตรง 100% — ระบบ v1.2 ใช้ 3-tier matching (ลอง master price ก่อน → fallback market) ช่วยให้ราคาใกล้เคียงที่สุด
+2. **Broker เดียวกัน:** ใช้โหมด `EXEC_MATCH_MASTER` จะช่วยให้ราคาตรงกัน (ต่างกันไม่เกิน 1-5 points)
+3. **Position เดิมก่อนรัน EA:** ถ้า Master มี position เปิดอยู่ก่อนรัน CopyTrade ให้ใช้ `InpSyncExisting = false` (ค่า default) เพื่อป้องกัน Slave เปิดซ้ำที่ราคาตลาดปัจจุบัน
+4. โฟลเดอร์ต้นขั้วทั้งหมด ต้องอยู่ใน `<MT5_Data_Folder>\MQL5\Include\CopyTrade\...` ห้ามเปลี่ยนชื่อโฟลเดอร์ไม่งั้น Include ไฟล์ไม่เจอ
 
 ---
 
-*CopyTrade System v1.1 — Institutional Cross-Broker Execution Engine*
+*CopyTrade System v1.2 — Institutional Cross-Broker Execution Engine*
