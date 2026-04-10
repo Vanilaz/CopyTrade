@@ -1,8 +1,7 @@
 {
   "server": {
     "tcpPort": 5555,
-    "httpPort": 8080,
-    "authToken": "copytrade2025"
+    "httpPort": 8080
   },
   "defaults": {
     "heartbeatSec": 5,

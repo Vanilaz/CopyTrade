@@ -264,18 +264,26 @@ string UnwrapSignalJson(const string &json)
 
 //+------------------------------------------------------------------+
 //| Calculate Cumulative Deposit/Withdrawal                           |
+//| ★ OPTIMIZED: Incremental scan — เฉพาะ deal ใหม่ตั้งแต่รอบก่อน     |
 //+------------------------------------------------------------------+
 double GetCumulativeDW()
 {
    static double cached_dw = 0.0;
    static datetime last_check = 0;
+   static datetime last_scan_end = 0;  // scan ถึงไหนแล้ว
+   static bool full_scan_done = false;
    datetime now = TimeCurrent();
-   
+
    // Update at most every 5 seconds
-   if(now - last_check >= 5)
+   if(now - last_check < 5)
+      return cached_dw;
+
+   last_check = now;
+
+   if(!full_scan_done)
    {
-      // Use now + 86400 to ensure all latest deals are captured reliably
-      if(HistorySelect(0, now + 864000))
+      // ครั้งแรก: Full scan ทั้งหมด
+      if(HistorySelect(0, now + 86400))
       {
          int total = HistoryDealsTotal();
          double dw = 0.0;
@@ -289,7 +297,40 @@ double GetCumulativeDW()
             }
          }
          cached_dw = dw;
-         last_check = now;
+         last_scan_end = now;
+         full_scan_done = true;
+      }
+   }
+   else
+   {
+      // Incremental: scan เฉพาะ deal ใหม่ตั้งแต่ last_scan_end
+      if(HistorySelect(last_scan_end - 60, now + 86400))  // overlap 60s เผื่อ deal late
+      {
+         int total = HistoryDealsTotal();
+         // Re-sum เฉพาะช่วง incremental (ง่ายกว่าหา diff ที่ exact)
+         // ถ้ามี deal ใหม่น้อย เร็วมาก, ถ้าไม่มี = 0 iterations
+         bool hasNewDW = false;
+         for(int i = total - 1; i >= 0; i--)
+         {
+            ulong ticket = HistoryDealGetTicket(i);
+            datetime dealTime = (datetime)HistoryDealGetInteger(ticket, DEAL_TIME);
+            if(dealTime < last_scan_end - 60) break;  // เก่ากว่าช่วง scan แล้ว
+
+            ENUM_DEAL_TYPE type = (ENUM_DEAL_TYPE)HistoryDealGetInteger(ticket, DEAL_TYPE);
+            if(type == DEAL_TYPE_BALANCE || type == DEAL_TYPE_CREDIT || type == DEAL_TYPE_BONUS || type == DEAL_TYPE_CHARGE || type == DEAL_TYPE_CORRECTION)
+            {
+               hasNewDW = true;
+               break;
+            }
+         }
+
+         // ถ้าเจอ DW deal ใหม่ → full recalc (เกิดไม่บ่อย)
+         if(hasNewDW)
+         {
+            full_scan_done = false;
+            return GetCumulativeDW();  // recursive → full scan
+         }
+         last_scan_end = now;
       }
    }
    return cached_dw;

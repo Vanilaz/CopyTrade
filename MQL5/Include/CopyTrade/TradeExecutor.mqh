@@ -650,9 +650,19 @@ double CTradeExecutor::NormalizeLot(string symbol, double lot)
    if(minLot <= 0)  minLot  = 0.01;
    if(maxLot <= 0)  maxLot  = 100.0;
 
+   // ★ FIX: คำนวณ decimal precision จาก stepLot แทน hardcode 2
+   // เช่น stepLot=0.01 → 2 decimals, stepLot=0.001 → 3 decimals
+   int lotDigits = 0;
+   double step = stepLot;
+   while(step < 1.0 && lotDigits < 8)
+   {
+      step *= 10.0;
+      lotDigits++;
+   }
+
    // Round to step
    lot = MathFloor(lot / stepLot) * stepLot;
-   lot = NormalizeDouble(lot, 2);
+   lot = NormalizeDouble(lot, lotDigits);
 
    if(lot < minLot) lot = minLot;
    if(lot > maxLot) lot = maxLot;

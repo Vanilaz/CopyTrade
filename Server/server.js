@@ -11,14 +11,26 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-// ─── Configuration ───────────────────────────────────────
+// ─── Load config.json if exists ─────────────────────────
+let fileConfig = {};
+try {
+  const cfgPath = path.join(__dirname, '..', 'Config', 'config.json');
+  if (fs.existsSync(cfgPath)) {
+    fileConfig = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+    console.log('[CONFIG] Loaded config from Config/config.json');
+  }
+} catch (e) {
+  console.log(`[CONFIG] Could not load config.json: ${e.message} — using defaults`);
+}
+
+// ─── Configuration (priority: env vars > config.json > defaults) ───
 const CONFIG = {
-  tcpPort: parseInt(process.env.TCP_PORT) || 5555,
-  httpPort: parseInt(process.env.HTTP_PORT) || 8080,
-  authToken: process.env.AUTH_TOKEN || 'copytrade2025',
-  dashboardPasscode: process.env.DASHBOARD_PASSCODE || '1234',
-  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '8496333439:AAHwyQP8WNyUq97YZoiAq6S4fBRpgNLtLoQ',
-  telegramChatId: process.env.TELEGRAM_CHAT_ID || '7182077286',
+  tcpPort: parseInt(process.env.TCP_PORT) || (fileConfig.server && fileConfig.server.tcpPort) || 5555,
+  httpPort: parseInt(process.env.HTTP_PORT) || (fileConfig.server && fileConfig.server.httpPort) || 8080,
+  authToken: process.env.AUTH_TOKEN || '',
+  dashboardPasscode: process.env.DASHBOARD_PASSCODE || '',
+  telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
+  telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
   heartbeatTimeout: 30000, // 30s no heartbeat = disconnect
   maxSignalLog: 500,
   maxHistoryLog: 1000,
@@ -423,6 +435,20 @@ function loadPerformance() {
   }
 }
 
+// ★ PERF: Batched history save — max once per 5 seconds
+let historySaveTimer = null;
+function scheduleHistorySave() {
+  if (historySaveTimer) return;
+  historySaveTimer = setTimeout(() => {
+    historySaveTimer = null;
+    try {
+      fs.writeFile(CONFIG.historyFile, JSON.stringify(tradeHistory), () => {});
+    } catch (e) {
+      log('WARN', `Failed to save history: ${e.message}`);
+    }
+  }, 5000);
+}
+
 // ─── Utility ─────────────────────────────────────────────
 const https = require('https');
 function sendTelegramMessage(text) {
@@ -474,6 +500,17 @@ function log(level, msg) {
   const ts = new Date().toISOString().substr(11, 12);
   const prefix = { INFO: '✅', WARN: '⚠️', ERROR: '❌', DEBUG: '🔍' }[level] || '📝';
   console.log(`[${ts}] ${prefix} ${msg}`);
+}
+
+// ★ PERF: Throttle dashboard updates — max once per second regardless of heartbeat count
+let dashboardUpdateTimer = null;
+function scheduleDashboardUpdate() {
+  if (dashboardUpdateTimer) return; // already scheduled
+  dashboardUpdateTimer = setTimeout(() => {
+    dashboardUpdateTimer = null;
+    broadcastDashboard('status', getStatus());
+    broadcastDashboard('performance', getPerformanceData());
+  }, 1000);
 }
 
 function broadcastDashboard(type, data) {
@@ -556,6 +593,21 @@ const tcpServer = net.createServer((socket) => {
   socket.on('data', createParser((msg) => {
     // ─── Authentication ───
     if (msg.action === 'auth') {
+      // ★ SECURITY: ตรวจสอบ auth token (ถ้าตั้งค่าไว้)
+      if (CONFIG.authToken && msg.token !== CONFIG.authToken) {
+        log('WARN', `Auth rejected from ${addr} — invalid token`);
+        sendMessage(socket, { action: 'auth_fail', reason: 'Invalid auth token' });
+        socket.destroy();
+        return;
+      }
+
+      if (!msg.role || !msg.id) {
+        log('WARN', `Auth rejected from ${addr} — missing role or id`);
+        sendMessage(socket, { action: 'auth_fail', reason: 'Missing role or id' });
+        socket.destroy();
+        return;
+      }
+
       clientRole = msg.role;
       clientId = msg.id;
       authenticated = true;
@@ -636,8 +688,8 @@ const tcpServer = net.createServer((socket) => {
       snapshotEquityHistory(clientId, msg.equity || 0, msg.balance || 0);
 
       sendMessage(socket, { action: 'heartbeat', ts: Date.now() });
-      broadcastDashboard('status', getStatus());
-      broadcastDashboard('performance', getPerformanceData());
+      // ★ PERF: Throttle broadcasts — schedule instead of sending on every heartbeat
+      scheduleDashboardUpdate();
       return;
     }
 
@@ -665,8 +717,8 @@ const tcpServer = net.createServer((socket) => {
       if (msg.type && msg.type.includes('CLOSE')) {
         tradeHistory.unshift(signalEntry);
         if (tradeHistory.length > CONFIG.maxHistoryLog) tradeHistory.pop();
-        // Also save to disk occasionally; here we just queue it to save periodically
-        fs.writeFile(CONFIG.historyFile, JSON.stringify(tradeHistory), () => { });
+        // ★ PERF: Batch writes — schedule instead of writing on every close
+        scheduleHistorySave();
       }
 
       // Route to subscribed slaves
@@ -831,9 +883,18 @@ const httpServer = http.createServer((req, res) => {
   }
 
 
-  // Serve dashboard
+  // Serve dashboard — ★ SECURITY: ป้องกัน path traversal
+  const publicDir = path.join(__dirname, 'public');
   let filePath = pathname === '/' ? '/dashboard.html' : pathname;
-  filePath = path.join(__dirname, 'public', filePath);
+  filePath = path.resolve(publicDir, '.' + filePath);
+
+  // Block any path that escapes the public directory
+  if (!filePath.startsWith(publicDir)) {
+    log('WARN', `Blocked path traversal attempt: ${pathname}`);
+    res.writeHead(403);
+    res.end('Forbidden');
+    return;
+  }
 
   const ext = path.extname(filePath);
   const contentTypes = {
@@ -890,7 +951,7 @@ loadPerformance();
 tcpServer.listen(CONFIG.tcpPort, '0.0.0.0', () => {
   console.log('');
   console.log('  ═══════════════════════════════════════════════');
-  console.log('  ║  CopyTrade Relay Server v1.1                ║');
+  console.log('  ║  CopyTrade Relay Server v1.2                ║');
   console.log('  ║  + Per-Account Performance Tracking         ║');
   console.log('  ═══════════════════════════════════════════════');
   console.log(`  ║  TCP Port  : ${CONFIG.tcpPort} (Master/Slave EA)`);
