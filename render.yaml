@@ -4,7 +4,7 @@ services:
   - type: web
     name: copytrade-relay
     runtime: node
-    region: singapore  # เปลี่ยนเป็น region ที่ใกล้ broker ที่สุด
+    region: frankfurt  # EU — ใกล้ London broker servers ที่สุด
     plan: free
     buildCommand: cd Server && npm ci --production
     startCommand: cd Server && node server.js
