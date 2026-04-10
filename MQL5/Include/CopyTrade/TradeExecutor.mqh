@@ -82,10 +82,10 @@ CTradeExecutor::CTradeExecutor()
    m_fixedLot       = 0.1;
    m_riskPercent    = 2.0;
    m_maxRetries     = 3;
-   m_retryDelayMs   = 500;
+   m_retryDelayMs   = 150;    // ลดจาก 500ms → 150ms เพื่อ retry เร็วขึ้น
    m_maxSpread      = 30;
    m_slippage       = 20;
-   m_matchSlippage  = 5;     // Match mode: ยอมลื่นแค่ 5 points
+   m_matchSlippage  = 30;    // Match mode: ยอมลื่น 30 points (Gold=$0.30, EURUSD=3.0pips)
    m_stalePriceMs   = 2000;  // ถ้า signal เก่าเกิน 2 วินาที ใช้ market แทน
    m_trade.SetDeviationInPoints(m_slippage);
    // ★ FIX: ไม่ hard-code filling mode — จะ detect อัตโนมัติตอน ExecuteOpen
@@ -136,40 +136,62 @@ long CTradeExecutor::ExecuteOpen(const TradeSignal &sig, string slaveSymbol)
    double marketPrice = (sig.orderType == ORDER_TYPE_BUY) ? ask : bid;
    long   ticketToReturn = -1;
 
-   ulong nowMs = GetTickCount64();
-   ulong latencyMs = (sig.fillTimeMs > 0) ? (nowMs - sig.fillTimeMs) : 99999;
    double point = SymbolInfoDouble(slaveSymbol, SYMBOL_POINT);
+
+   // ★ FIX: ใช้ TimeCurrent() (broker server time) แทน GetTickCount64()
+   // เพราะ cross-broker คนละเครื่อง GetTickCount64 (system uptime) ต่างกัน → latency ผิดเสมอ
+   // TimeCurrent() มี resolution แค่ 1 วินาที แต่ทั้ง 2 broker sync กัน (ดีกว่าผิดทั้งหมด)
+   ulong latencyMs = 99999;
+   if(sig.timestamp > 0)
+   {
+      long diffSec = (long)TimeCurrent() - (long)sig.timestamp;
+      if(diffSec >= 0) latencyMs = (ulong)(diffSec * 1000);
+      else latencyMs = 0;  // slave เร็วกว่า master เล็กน้อย → ถือว่า fresh
+   }
 
    if((m_execMode == EXEC_MATCH_MASTER || m_execMode == EXEC_LIMIT_CHASE) && sig.fillPrice > 0 && point > 0)
    {
       double diffPoints = MathAbs(marketPrice - sig.fillPrice) / point;
 
-      // ถ้าหน้างานใกล้เคียงกับราคา Master (+/- Slippage ที่ตั้งไว้)
+      // ★ Normalize ราคา Master ให้ตรงตาม digits ของ Slave symbol
+      double masterExecPrice = NormalizeDouble(sig.fillPrice, digits);
+
+      // ─── Tier 1: ราคาใกล้เคียง → ส่งราคา Master เป๊ะ + deviation แคบ ───
       if(diffPoints <= m_matchSlippage)
       {
-         execPrice = 0; // ยิง Market ได้เลย
-         CTLog(LOG_DEBUG, "MATCH MODE: Price is within slippage (" + DoubleToString(diffPoints, 1) + " pts). Executing Market.");
+         execPrice = masterExecPrice;
+         m_trade.SetDeviationInPoints(m_matchSlippage);
+         CTLog(LOG_INFO, "MATCH EXACT: Master price " + DoubleToString(execPrice, digits) +
+               " (diff=" + DoubleToString(diffPoints, 1) + "pts, dev=" +
+               IntegerToString(m_matchSlippage) + "pts)");
       }
+      // ─── Tier 2: ราคาห่างปานกลาง → ยังลองใช้ราคา Master + deviation กว้าง ───
+      // ★ FIX: ไม่เช็ค latency แล้ว — cross-broker latency วัดไม่ได้แม่น
+      //   ถ้าราคายังอยู่ในช่วง ลองยิง master price เสมอ, requote → fallback market อยู่แล้ว
+      else if(diffPoints <= m_matchSlippage * 5)
+      {
+         execPrice = masterExecPrice;
+         int widerDev = (int)(diffPoints + m_matchSlippage);
+         m_trade.SetDeviationInPoints(widerDev);
+         CTLog(LOG_INFO, "MATCH WIDE: Master price " + DoubleToString(execPrice, digits) +
+               " (diff=" + DoubleToString(diffPoints, 1) + "pts, dev=" +
+               IntegerToString(widerDev) + "pts, latency~" +
+               IntegerToString((long)latencyMs) + "ms)");
+      }
+      // ─── Tier 3: ราคาห่างมาก แต่ signal ยัง fresh → ยิง market ───
       else
       {
-         if(latencyMs <= (ulong)m_stalePriceMs)
-         {
-            CTLog(LOG_WARN, "MATCH MODE: Slippage is high (" + DoubleToString(diffPoints, 1) + " pts) but USER requested IMMEDIATELY execution -> Executing Market!");
-            execPrice = 0; // **ยิง Market ทันทีไม่ง้อ Pending Order ตามที่ระบบควรรีบออกให้พร้อมกันที่สุด**
-         }
-         else
-         {
-            CTLog(LOG_WARN, "STALE SIGNAL: Price away by " + DoubleToString(diffPoints, 1) + " pts & Old (" + IntegerToString((long)latencyMs) + "ms) -> Fallback Market");
-            execPrice = 0;
-         }
+         execPrice = 0;
+         m_trade.SetDeviationInPoints(m_slippage);
+         CTLog(LOG_WARN, "MATCH FALLBACK: Price too far (" + DoubleToString(diffPoints, 1) +
+               "pts, >" + IntegerToString(m_matchSlippage * 5) + ") → Market");
       }
    }
    else
    {
       execPrice = 0;
+      m_trade.SetDeviationInPoints(m_slippage);
    }
-   
-   m_trade.SetDeviationInPoints(m_slippage);
 
    // Calculate SL/TP using pip distance
    double slaveEntry = (execPrice > 0) ? execPrice : marketPrice;
@@ -197,16 +219,15 @@ long CTradeExecutor::ExecuteOpen(const TradeSignal &sig, string slaveSymbol)
          double fillPrice = m_trade.ResultPrice();
 
          // Log ความแตกต่างของราคา (Price Discrepancy)
-         if(sig.fillPrice > 0)
+         if(sig.fillPrice > 0 && point > 0)
          {
             double priceDiff = MathAbs(fillPrice - sig.fillPrice);
-            double pointSize = SymbolInfoDouble(slaveSymbol, SYMBOL_POINT);
-            double diffPts = (pointSize > 0) ? priceDiff / pointSize : 0;
+            double diffPts = priceDiff / point;
             CTLog(LOG_INFO, "📊 PRICE MATCH: Master=" +
                   DoubleToString(sig.fillPrice, digits) +
                   " Slave=" + DoubleToString(fillPrice, digits) +
                   " Diff=" + DoubleToString(diffPts, 1) + "pts" +
-                  " Latency=" + IntegerToString((long)latencyMs) + "ms");
+                  " Latency~" + IntegerToString((long)latencyMs) + "ms");
          }
 
          CTLog(LOG_INFO, "✅ OPEN " + OrderTypeToStr(sig.orderType) + " " +

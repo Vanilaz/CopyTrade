@@ -31,6 +31,7 @@ input string   InpRelayHost      = "127.0.0.1";        // Relay Server IP
 input int      InpRelayPort      = 5555;               // Relay Server Port
 
 input group "═══════════ ขั้นสูง ═══════════"
+input bool     InpSyncExisting   = false;              // Sync position ที่เปิดอยู่ก่อน? (false = ข้าม, true = sync ให้ Slave)
 input int      InpHeartbeatSec   = 5;                  // ส่ง Heartbeat ทุก (วินาที)
 input int      InpTimerMs        = 100;                // Timer interval (ms)
 input ENUM_LOG_LEVEL InpLogLevel = LOG_INFO;           // Log Level
@@ -118,17 +119,30 @@ int OnInit()
    //--- Snapshot current positions
    SnapshotPositions();
 
-   //--- ★ ไม่ mark position เดิมเป็น "signaled" ตอน init
-   //--- ปล่อยให้ Safety Net (CheckNewPositions) ส่ง SIGNAL_OPEN ทุกตัว
-   //--- Slave จะกรอง duplicate ด้วย FindSlaveTicket() →
-   //--- ผลลัพธ์: ทุกครั้งที่ Master restart จะ SYNC ให้ Slave มีไม้ตรงกันเสมอ
+   //--- ★ FIX: เลือกว่าจะ sync position เดิมไปให้ Slave หรือไม่
+   if(!InpSyncExisting)
+   {
+      //--- Mark position ที่เปิดอยู่ก่อนเป็น "signaled" → Safety Net จะข้ามไม่ส่ง
+      //--- ป้องกัน Slave เปิด order ซ้ำที่ราคาตลาดปัจจุบัน (ราคาไม่ตรง Master)
+      for(int i = 0; i < g_posCount; i++)
+      {
+         MarkPositionSignaled(g_positions[i].positionID);
+      }
+      CTLog(LOG_INFO, "📌 Marked " + IntegerToString(g_posCount) + " existing positions as signaled (won't sync to Slave)");
+   }
+   else
+   {
+      //--- ปล่อยให้ Safety Net (CheckNewPositions) ส่ง SIGNAL_OPEN ทุกตัว
+      //--- Slave จะกรอง duplicate ด้วย FindSlaveTicket()
+      CTLog(LOG_INFO, "🔄 SyncExisting=ON — Safety Net will sync " + IntegerToString(g_posCount) + " positions to Slave");
+   }
 
    //--- Set timer
    if(!EventSetMillisecondTimer(InpTimerMs))
       EventSetTimer(1);
 
    g_initialized = true;
-   CTLog(LOG_INFO, "✅ Master EA initialized — monitoring " + IntegerToString(g_posCount) + " positions (Safety Net will sync)");
+   CTLog(LOG_INFO, "✅ Master EA initialized — monitoring " + IntegerToString(g_posCount) + " positions");
    return INIT_SUCCEEDED;
 }
 
@@ -186,18 +200,18 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
 
    // ★ FIX: Retry HistoryDealSelect — deal อาจยังไม่พร้อมใน history
    bool selected = false;
-   for(int retry = 0; retry < 10; retry++)
+   for(int retry = 0; retry < 20; retry++)
    {
       if(HistoryDealSelect(dealTicket))
       {
          selected = true;
          break;
       }
-      Sleep(20);  // รอ 20ms แล้วลองใหม่ (สูงสุด 200ms)
+      Sleep(5);  // รอ 5ms แล้วลองใหม่ (สูงสุด 100ms, เดิม 200ms)
    }
    if(!selected)
    {
-      CTLog(LOG_WARN, "⚠ HistoryDealSelect FAILED after 10 retries — deal #" + IntegerToString(dealTicket));
+      CTLog(LOG_WARN, "⚠ HistoryDealSelect FAILED after 20 retries — deal #" + IntegerToString(dealTicket));
       return;
    }
 

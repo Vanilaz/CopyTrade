@@ -164,6 +164,8 @@ string CreateHeartbeatJson(string id, string role)
    double equity      = AccountInfoDouble(ACCOUNT_EQUITY);
    double marginLevel = AccountInfoDouble(ACCOUNT_MARGIN_LEVEL);
    double profit      = AccountInfoDouble(ACCOUNT_PROFIT);
+   double marginUsed  = AccountInfoDouble(ACCOUNT_MARGIN);
+   double freeMargin  = AccountInfoDouble(ACCOUNT_MARGIN_FREE);
    int    positions   = PositionsTotal();
    double cumDW       = GetCumulativeDW();
 
@@ -174,9 +176,47 @@ string CreateHeartbeatJson(string id, string role)
    json += "\"balance\":" + DoubleToString(balance, 2) + ",";
    json += "\"equity\":" + DoubleToString(equity, 2) + ",";
    json += "\"marginLevel\":" + DoubleToString(marginLevel, 2) + ",";
+   json += "\"marginUsed\":" + DoubleToString(marginUsed, 2) + ",";
+   json += "\"freeMargin\":" + DoubleToString(freeMargin, 2) + ",";
    json += "\"floatingPnL\":" + DoubleToString(profit, 2) + ",";
    json += "\"positions\":" + IntegerToString(positions) + ",";
    json += "\"cumulativeDW\":" + DoubleToString(cumDW, 2) + ",";
+
+   // ─── Position Details Array ───
+   json += "\"positionDetails\":[";
+   bool firstPos = true;
+   for(int i = 0; i < positions; i++)
+   {
+      ulong ticket = PositionGetTicket(i);
+      if(ticket == 0) continue;
+      if(!firstPos) json += ",";
+      firstPos = false;
+
+      string sym    = PositionGetString(POSITION_SYMBOL);
+      int    type   = (int)PositionGetInteger(POSITION_TYPE);
+      double lots   = PositionGetDouble(POSITION_VOLUME);
+      double entry  = PositionGetDouble(POSITION_PRICE_OPEN);
+      double pnl    = PositionGetDouble(POSITION_PROFIT);
+      double sl     = PositionGetDouble(POSITION_SL);
+      double tp     = PositionGetDouble(POSITION_TP);
+      long   magic  = PositionGetInteger(POSITION_MAGIC);
+      string comment= PositionGetString(POSITION_COMMENT);
+
+      json += "{";
+      json += "\"ticket\":" + IntegerToString((long)ticket) + ",";
+      json += "\"symbol\":\"" + sym + "\",";
+      json += "\"type\":" + IntegerToString(type) + ",";
+      json += "\"lots\":" + DoubleToString(lots, 2) + ",";
+      json += "\"entry\":" + DoubleToString(entry, (int)SymbolInfoInteger(sym, SYMBOL_DIGITS)) + ",";
+      json += "\"pnl\":" + DoubleToString(pnl, 2) + ",";
+      json += "\"sl\":" + DoubleToString(sl, (int)SymbolInfoInteger(sym, SYMBOL_DIGITS)) + ",";
+      json += "\"tp\":" + DoubleToString(tp, (int)SymbolInfoInteger(sym, SYMBOL_DIGITS)) + ",";
+      json += "\"magic\":" + IntegerToString(magic) + ",";
+      json += "\"comment\":\"" + comment + "\"";
+      json += "}";
+   }
+   json += "],";
+
    json += "\"ts\":" + IntegerToString((long)TimeCurrent());
    json += "}";
    return json;

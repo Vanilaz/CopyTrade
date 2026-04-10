@@ -156,18 +156,68 @@ function updateAccountPerformance(accountId, role, heartbeatData) {
     perf.monthStartKey = monthKey;
   }
 
+  // ─── Adjust Peak Equity for Deposits/Withdrawals ───
+  if (perf.lastCumDW === undefined) {
+    perf.lastCumDW = newCumDW;
+  }
+  
+  // If a deposit or withdrawal occurred, shift the peak equity by the exact amount 
+  // so we don't trigger an artificial massive drawdown
+  if (newCumDW !== perf.lastCumDW) {
+    const dwDiff = newCumDW - perf.lastCumDW; 
+    perf.peakEquity += dwDiff;
+    if (perf.peakEquity < 0) perf.peakEquity = newEquity > 0 ? newEquity : 0;
+    perf.lastCumDW = newCumDW;
+  }
+
   // ─── Peak equity & Drawdown ───
   if (newEquity > perf.peakEquity) {
     perf.peakEquity = newEquity;
   }
+  
   if (perf.peakEquity > 0) {
     const dd = perf.peakEquity - newEquity;
     const ddPct = (dd / perf.peakEquity) * 100;
-    if (dd > perf.maxDrawdown) perf.maxDrawdown = dd;
-    if (ddPct > perf.maxDrawdownPct) perf.maxDrawdownPct = ddPct;
+    
+    // Only count huge positive DDs if they actually exist, filter out noise
+    if (dd > 0 && dd > perf.maxDrawdown) perf.maxDrawdown = dd;
+    if (ddPct > 0 && ddPct > perf.maxDrawdownPct) perf.maxDrawdownPct = ddPct;
   }
 
   return perf;
+}
+
+// Reset performance stats for one or all accounts (in-memory + disk)
+function resetPerformanceStats(accountId) {
+  const resetOne = (perf) => {
+    const bal = perf.currentBalance || 0;
+    const eq = perf.currentEquity || bal;
+    perf.peakEquity = eq;
+    perf.maxDrawdown = 0;
+    perf.maxDrawdownPct = 0;
+    perf.totalTrades = 0;
+    perf.winTrades = 0;
+    perf.lossTrades = 0;
+    perf.dayStartBalance = bal;
+    perf.dayStartNetBalance = perf.lastNetBalance || bal;
+    perf.dayStartKey = getDateKey(getBrokerDate());
+    perf.weekStartBalance = bal;
+    perf.weekStartNetBalance = perf.lastNetBalance || bal;
+    perf.weekStartKey = getWeekKey(getBrokerDate());
+    perf.monthStartBalance = bal;
+    perf.monthStartNetBalance = perf.lastNetBalance || bal;
+    perf.monthStartKey = getMonthKey(getBrokerDate());
+    perf.lastCumDW = undefined; // re-init on next heartbeat
+  };
+
+  if (accountId) {
+    const perf = accountPerf.get(accountId);
+    if (perf) { resetOne(perf); log('INFO', `Reset performance for account ${accountId}`); }
+  } else {
+    accountPerf.forEach((perf) => resetOne(perf));
+    log('INFO', `Reset performance for ALL ${accountPerf.size} accounts`);
+  }
+  savePerformance();
 }
 
 function getPerformanceData() {
@@ -176,9 +226,15 @@ function getPerformanceData() {
     // Hide disconnected accounts from the dashboard
     if (!masters.has(id) && !slaves.has(id)) return;
 
-    const todayPnL = perf.dayStartBalance > 0 && perf.lastNetBalance !== undefined ? (perf.lastNetBalance - perf.dayStartNetBalance) + perf.floatingPnL : perf.floatingPnL;
-    const weekPnL = perf.weekStartBalance > 0 && perf.lastNetBalance !== undefined ? (perf.lastNetBalance - perf.weekStartNetBalance) + perf.floatingPnL : perf.floatingPnL;
-    const monthPnL = perf.monthStartBalance > 0 && perf.lastNetBalance !== undefined ? (perf.lastNetBalance - perf.monthStartNetBalance) + perf.floatingPnL : perf.floatingPnL;
+    // Safe PnL calculation — fallback to 0 if net balance fields are missing
+    const netBal = perf.lastNetBalance !== undefined ? perf.lastNetBalance : perf.currentBalance;
+    const dayStartNet = perf.dayStartNetBalance !== undefined ? perf.dayStartNetBalance : perf.dayStartBalance;
+    const weekStartNet = perf.weekStartNetBalance !== undefined ? perf.weekStartNetBalance : perf.weekStartBalance;
+    const monthStartNet = perf.monthStartNetBalance !== undefined ? perf.monthStartNetBalance : perf.monthStartBalance;
+
+    const todayPnL = perf.dayStartBalance > 0 ? (netBal - dayStartNet) + perf.floatingPnL : perf.floatingPnL;
+    const weekPnL = perf.weekStartBalance > 0 ? (netBal - weekStartNet) + perf.floatingPnL : perf.floatingPnL;
+    const monthPnL = perf.monthStartBalance > 0 ? (netBal - monthStartNet) + perf.floatingPnL : perf.floatingPnL;
     const winRate = perf.totalTrades > 0 ? ((perf.winTrades / perf.totalTrades) * 100).toFixed(1) : '—';
     const currentDD = perf.peakEquity > 0 ? ((perf.peakEquity - perf.currentEquity) / perf.peakEquity * 100) : 0;
 
@@ -204,6 +260,130 @@ function getPerformanceData() {
     });
   });
   return result;
+}
+
+
+// ─── Equity History (for chart) ──────────────────────────
+const equityHistory = new Map(); // accountId -> [{ts, equity, balance}]
+const EQUITY_SNAPSHOT_INTERVAL = 30000; // 30s between snapshots
+const MAX_EQUITY_HISTORY = 2880; // ~24 hours at 30s intervals
+const lastEquitySnapshot = new Map();
+
+function snapshotEquityHistory(accountId, equity, balance) {
+  const now = Date.now();
+  const lastTs = lastEquitySnapshot.get(accountId) || 0;
+  if (now - lastTs < EQUITY_SNAPSHOT_INTERVAL) return;
+
+  if (!equityHistory.has(accountId)) equityHistory.set(accountId, []);
+  const hist = equityHistory.get(accountId);
+  hist.push({ ts: now, equity: equity || 0, balance: balance || 0 });
+  if (hist.length > MAX_EQUITY_HISTORY) hist.shift();
+  lastEquitySnapshot.set(accountId, now);
+}
+
+function getEquityHistory() {
+  const result = {};
+  equityHistory.forEach((hist, id) => {
+    if (!masters.has(id) && !slaves.has(id)) return;
+    result[id] = hist;
+  });
+  return result;
+}
+
+// ─── Sync Monitor ────────────────────────────────────────
+function getSyncStatus() {
+  const masterPositions = {};
+  // Collect master position details
+  masters.forEach((m, id) => {
+    const details = m.info.positionDetails || [];
+    masterPositions[id] = {
+      accountId: id,
+      count: m.info.positions || details.length,
+      symbols: details.map(p => p.symbol),
+      details: details,
+    };
+  });
+
+  const slaveSync = [];
+  slaves.forEach((s, id) => {
+    const slaveDetails = s.info.positionDetails || [];
+    const subscribedTo = s.subscribedTo || Object.keys(masterPositions)[0] || '';
+    const masterData = masterPositions[subscribedTo] || { count: 0, symbols: [], details: [] };
+
+    // Compare position counts
+    const masterCount = masterData.count;
+    const slaveCount = s.info.positions || slaveDetails.length;
+    const isSynced = masterCount === slaveCount;
+
+    // Find missing symbols
+    const slaveSymbols = slaveDetails.map(p => p.symbol);
+    const missingSymbols = masterData.symbols.filter(sym => !slaveSymbols.includes(sym));
+
+    slaveSync.push({
+      accountId: id,
+      subscribedTo,
+      masterPositions: masterCount,
+      slavePositions: slaveCount,
+      synced: isSynced,
+      missing: masterCount - slaveCount,
+      missingSymbols,
+      slaveDetails,
+    });
+  });
+
+  return { masters: masterPositions, slaves: slaveSync };
+}
+
+// ─── Risk Dashboard ──────────────────────────────────────
+function getRiskMetrics() {
+  const risks = [];
+  const allAccounts = new Map([...masters, ...slaves]);
+
+  allAccounts.forEach((acct, id) => {
+    const positions = acct.info.positionDetails || [];
+    const exposure = {};
+    positions.forEach(p => {
+      const sym = p.symbol || 'UNKNOWN';
+      if (!exposure[sym]) exposure[sym] = { lots: 0, pnl: 0, count: 0 };
+      exposure[sym].lots += p.lots || 0;
+      exposure[sym].pnl += p.pnl || 0;
+      exposure[sym].count++;
+    });
+
+    risks.push({
+      accountId: id,
+      role: masters.has(id) ? 'master' : 'slave',
+      balance: acct.info.balance || 0,
+      equity: acct.info.equity || 0,
+      marginUsed: acct.info.marginUsed || 0,
+      freeMargin: acct.info.freeMargin || 0,
+      marginLevel: acct.info.marginLevel || 0,
+      marginUsagePct: (acct.info.balance > 0 && acct.info.marginUsed > 0)
+        ? ((acct.info.marginUsed / acct.info.balance) * 100).toFixed(1) : '0.0',
+      positions: acct.info.positions || 0,
+      exposure,
+      floatingPnL: acct.info.floatingPnL || 0,
+    });
+  });
+  return risks;
+}
+
+// ─── Slippage Analysis ───────────────────────────────────
+function getSlippageAnalysis() {
+  // Analyze the last 200 signals that have fill prices
+  const recentSignals = signalLog.slice(-200).filter(s => s.fillPrice > 0 && s.type && s.type.includes('OPEN'));
+
+  if (recentSignals.length === 0) return { trades: [], avgSlippage: 0, maxSlippage: 0 };
+
+  const trades = recentSignals.map(s => ({
+    time: s.time,
+    symbol: s.symbol,
+    masterPrice: s.fillPrice,
+    type: s.type,
+    masterID: s.masterID,
+  }));
+
+  return { trades, totalSignals: recentSignals.length };
 }
 
 // ─── Persistence ─────────────────────────────────────────
@@ -283,7 +463,7 @@ function checkDailyReport() {
 🎯 Win Rate: ${winRate}%
 ⚡ Total Trades: ${totalTradesCount}
 ━━━━━━━━━━━━━━━━━━━━
-${acctLines.join('\\n')}
+${acctLines.join('\n')}
 ━━━━━━━━━━━━━━━━━━━━
 ⚠️ Alert: All systems operational.`;
     sendTelegramMessage(msg);
@@ -432,8 +612,11 @@ const tcpServer = net.createServer((socket) => {
         if (msg.balance !== undefined) clientObj.info.balance = msg.balance;
         if (msg.equity !== undefined) clientObj.info.equity = msg.equity;
         if (msg.marginLevel !== undefined) clientObj.info.marginLevel = msg.marginLevel;
+        if (msg.marginUsed !== undefined) clientObj.info.marginUsed = msg.marginUsed;
+        if (msg.freeMargin !== undefined) clientObj.info.freeMargin = msg.freeMargin;
         if (msg.floatingPnL !== undefined) clientObj.info.floatingPnL = msg.floatingPnL;
         if (msg.positions !== undefined) clientObj.info.positions = msg.positions;
+        if (msg.positionDetails) clientObj.info.positionDetails = msg.positionDetails;
       }
 
       // ★ Update performance tracking
@@ -441,9 +624,16 @@ const tcpServer = net.createServer((socket) => {
         balance: msg.balance,
         equity: msg.equity,
         marginLevel: msg.marginLevel,
+        marginUsed: msg.marginUsed,
+        freeMargin: msg.freeMargin,
         floatingPnL: msg.floatingPnL,
         positions: msg.positions,
+        positionDetails: msg.positionDetails,
+        cumulativeDW: msg.cumulativeDW,
       });
+
+      // ★ Snapshot equity history (max 1 per 30s per account)
+      snapshotEquityHistory(clientId, msg.equity || 0, msg.balance || 0);
 
       sendMessage(socket, { action: 'heartbeat', ts: Date.now() });
       broadcastDashboard('status', getStatus());
@@ -593,6 +783,54 @@ const httpServer = http.createServer((req, res) => {
     return;
   }
 
+  // Reset all performance stats
+  if (pathname === '/api/reset-performance') {
+    if (!checkAuth()) return res.writeHead(401), res.end('Unauthorized');
+    const acctId = currentUrl.searchParams.get('account') || null;
+    resetPerformanceStats(acctId);
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ ok: true, message: acctId ? `Reset account ${acctId}` : 'Reset ALL accounts' }));
+    const perfPayload = JSON.stringify({ type: 'performance', data: getPerformanceData(), timestamp: Date.now() });
+    wsClients.forEach(c => { try { c.send(perfPayload); } catch(e){} });
+    return;
+  }
+
+  // Sync monitor
+  if (pathname === '/api/sync') {
+    if (!checkAuth()) return res.writeHead(401), res.end('Unauthorized');
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(getSyncStatus()));
+    return;
+  }
+
+  // Equity history for charts
+  if (pathname === '/api/equity-history') {
+    if (!checkAuth()) return res.writeHead(401), res.end('Unauthorized');
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(getEquityHistory()));
+    return;
+  }
+
+  // Risk metrics
+  if (pathname === '/api/risk') {
+    if (!checkAuth()) return res.writeHead(401), res.end('Unauthorized');
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(getRiskMetrics()));
+    return;
+  }
+
+  // Position details (all accounts)
+  if (pathname === '/api/positions') {
+    if (!checkAuth()) return res.writeHead(401), res.end('Unauthorized');
+    const positions = {};
+    masters.forEach((m, id) => { positions[id] = { role: 'master', details: m.info.positionDetails || [] }; });
+    slaves.forEach((s, id) => { positions[id] = { role: 'slave', details: s.info.positionDetails || [] }; });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(positions));
+    return;
+  }
+
+
   // Serve dashboard
   let filePath = pathname === '/' ? '/dashboard.html' : pathname;
   filePath = path.join(__dirname, 'public', filePath);
@@ -631,11 +869,14 @@ if (WebSocket) {
     }
     log('INFO', 'Dashboard WebSocket connected');
     wsClients.push(ws);
-    // Send initial status + performance
+    // Send initial data for all tabs
     ws.send(JSON.stringify({ type: 'status', data: getStatus(), timestamp: Date.now() }));
     ws.send(JSON.stringify({ type: 'signalHistory', data: signalLog.slice(-50), timestamp: Date.now() }));
     ws.send(JSON.stringify({ type: 'tradeHistory', data: tradeHistory.slice(0, 100), timestamp: Date.now() }));
     ws.send(JSON.stringify({ type: 'performance', data: getPerformanceData(), timestamp: Date.now() }));
+    ws.send(JSON.stringify({ type: 'sync', data: getSyncStatus(), timestamp: Date.now() }));
+    ws.send(JSON.stringify({ type: 'risk', data: getRiskMetrics(), timestamp: Date.now() }));
+    ws.send(JSON.stringify({ type: 'equityHistory', data: getEquityHistory(), timestamp: Date.now() }));
 
     ws.on('close', () => {
       wsClients = wsClients.filter(c => c !== ws);

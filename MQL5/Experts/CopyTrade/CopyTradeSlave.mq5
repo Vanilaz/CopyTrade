@@ -52,13 +52,13 @@ input bool     InpCopySLTP        = true;                // Copy SL/TP
 
 input group "═══════════ ราคา (Execution) ═══════════"
 input ENUM_EXEC_MODE InpExecMode  = EXEC_MATCH_MASTER;   // โหมด Execution (แนะนำ: MATCH_MASTER)
-input int      InpMatchSlippage   = 5;                   // Match Mode: Deviation สูงสุด (points)
-input int      InpStalePriceMs    = 2000;                // Signal เก่าเกินกี่ ms ใช้ Market แทน
+input int      InpMatchSlippage   = 30;                  // Match Mode: Deviation สูงสุด (points)
+input int      InpStalePriceMs    = 5000;                // Signal เก่าเกินกี่ ms ใช้ Market แทน (เพิ่มเป็น 5s เผื่อ cross-broker)
 
 input group "═══════════ ขั้นสูง ═══════════"
 input int      InpMagic           = 900001;              // Magic Number
 input int      InpMaxRetries      = 3;                   // Retry จำนวนรอบ
-input int      InpTimerMs         = 100;                 // Timer interval (ms)
+input int      InpTimerMs         = 50;                  // Timer interval (ms) — เร็วขึ้น 2x
 input ENUM_LOG_LEVEL InpLogLevel  = LOG_INFO;            // Log Level
 
 //+------------------------------------------------------------------+

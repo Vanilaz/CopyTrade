@@ -19,7 +19,7 @@
 #define CT_SIGNAL_PREFIX      "sig_"
 #define CT_SIGNAL_EXT         ".json"
 #define CT_MAP_FILE           "ticket_map.dat"
-#define CT_POLL_MS            100        // File poll interval ms
+#define CT_POLL_MS            50         // File poll interval ms (ลดจาก 100ms)
 #define CT_FILE_MAX_AGE_SEC   60         // Delete signals older than 60s
 
 //--- Socket Transport

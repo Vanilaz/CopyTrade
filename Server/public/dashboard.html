@@ -1048,6 +1048,11 @@
                     <div class="perf-card-value" id="perfTotalTrades">0</div>
                     <div class="perf-card-sub">All-time closed trades</div>
                 </div>
+                <div class="perf-card" style="cursor:pointer; border:1px solid rgba(239,68,68,0.3);" onclick="resetStats()" title="Reset all drawdown, win/loss, and PnL stats">
+                    <div class="perf-card-label">🔄 Reset Stats</div>
+                    <div class="perf-card-value" style="font-size:18px; color:var(--accent-warning);">Click to Reset</div>
+                    <div class="perf-card-sub">Clear all drawdown & trade data</div>
+                </div>
             </div>
 
             <!-- Performance Table -->
@@ -1113,6 +1118,7 @@
         let signals = [];
         let performanceData = [];
         let tradeHistory = [];
+        let todaySignalCount = 0;
         const startTime = Date.now();
         let passcode = localStorage.getItem('copytrade_passcode') || '';
 
@@ -1123,6 +1129,7 @@
         } catch (e) { }
 
         // ─── Auth ───
+        // ★ FIX: เรียก connectWebSocket() ที่เดียว ไม่ใช่ 2 ที่ (เดิม connect ซ้ำ → WS คู่)
         if (!passcode) {
             document.getElementById('authOverlay').style.display = 'flex';
         } else {
@@ -1149,6 +1156,7 @@
 
         // ─── WebSocket ───
         function connectWebSocket() {
+            if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
             const wsUrl = `ws://${window.location.hostname}:${window.location.port}?passcode=${passcode}`;
             ws = new WebSocket(wsUrl);
 
@@ -1182,13 +1190,6 @@
             return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(val);
         }
 
-        function formatPnL(val) {
-            if (val === undefined || val === null || val === 0) return '<span class="pnl-zero">$0.00</span>';
-            const cls = val > 0 ? 'pnl-positive' : 'pnl-negative';
-            const sign = val > 0 ? '+' : '';
-            return `<span class="${cls}">${sign}${formatCurrency(val).replace('$', '').replace('-', '')}${val < 0 ? '' : ''}</span>`;
-        }
-
         function formatPnLValue(val) {
             if (val === undefined || val === null || Math.abs(val) < 0.005) return '<span class="pnl-zero">$0.00</span>';
             const cls = val > 0 ? 'pnl-positive' : 'pnl-negative';
@@ -1197,10 +1198,24 @@
             return `<span class="${cls}">${sign}${abs.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>`;
         }
 
+        // ★ FIX: แสดง "x ago" แทน timestamp ดิบ
+        function timeAgo(ts) {
+            if (!ts) return '—';
+            const sec = Math.floor((Date.now() - ts) / 1000);
+            if (sec < 0) return 'just now';
+            if (sec < 5) return 'just now';
+            if (sec < 60) return sec + 's ago';
+            if (sec < 3600) return Math.floor(sec / 60) + 'm ago';
+            if (sec < 86400) return Math.floor(sec / 3600) + 'h ago';
+            return Math.floor(sec / 86400) + 'd ago';
+        }
+
         // ─── Overview Tab ───
         function updateStatus(status) {
             document.getElementById('masterCount').textContent = status.masters.length;
             document.getElementById('slaveCount').textContent = status.slaves.length;
+
+            // ★ FIX: "Total Executions" = signal count จาก server (ไม่ increment ซ้ำ client-side)
             document.getElementById('signalCount').textContent = status.signalCount;
 
             let totalFloatingPnl = 0;
@@ -1211,29 +1226,38 @@
             pnlEl.textContent = formatCurrency(totalFloatingPnl);
             pnlEl.style.color = totalFloatingPnl > 0 ? 'var(--accent-success)' : (totalFloatingPnl < 0 ? 'var(--accent-danger)' : 'var(--text-primary)');
 
+            // ─── Master Panel ───
             const mastersEl = document.getElementById('mastersList');
             if (status.masters.length === 0) {
                 mastersEl.innerHTML = '<div class="empty-state"><div class="empty-emoji">📡</div>Waiting for Master</div>';
             } else {
                 mastersEl.innerHTML = status.masters.map(m => {
-                    const margin = m.info && m.info.marginLevel ? m.info.marginLevel.toFixed(2) + '%' : '—';
+                    // ★ FIX: แสดง Balance/Equity/Floating ของ Master ด้วย (เดิมไม่มี)
+                    const balance = m.info && m.info.balance ? formatCurrency(m.info.balance) : '—';
+                    const equity = m.info && m.info.equity ? formatCurrency(m.info.equity) : '—';
+                    const pnl = m.info && m.info.floatingPnL ? m.info.floatingPnL : 0;
+                    const pnlColor = pnl > 0 ? 'var(--accent-success)' : (pnl < 0 ? 'var(--accent-danger)' : 'var(--text-muted)');
                     const activeP = m.info && m.info.positions !== undefined ? m.info.positions : '—';
+                    // ★ FIX: "Ping" → "Last seen" + แสดง time ago
+                    const lastSeen = timeAgo(m.lastHeartbeat);
                     return `
                     <div class="list-item" style="flex-wrap: wrap;">
                         <div class="avatar master">M</div>
                         <div class="item-info">
                             <div class="item-title">${escapeHtml(m.id)}</div>
-                            <div class="item-sub">Ping: ${formatTime(m.lastHeartbeat)}</div>
+                            <div class="item-sub">Last seen: ${lastSeen} · Pos: ${activeP}</div>
                         </div>
-                        <div class="item-stats" style="text-align:right; font-size:13px; margin-right:15px;">
-                            <div style="color:var(--text-secondary)">Margin: <span style="color:#fff">${margin}</span></div>
-                            <div style="color:var(--text-secondary)">Positions: <span style="color:#fff">${activeP}</span></div>
+                        <div class="item-stats" style="text-align:right; font-size:13px; margin-right:15px; display:grid; grid-template-columns: 1fr 1fr; gap: 0 15px;">
+                            <div style="color:var(--text-secondary); text-align:left;">Bal: <span style="color:#fff">${balance}</span></div>
+                            <div style="color:var(--text-secondary); text-align:right;">Eq: <span style="color:#fff">${equity}</span></div>
+                            <div style="grid-column: 1 / -1; margin-top:2px; font-weight:600; color:${pnlColor}">PnL: ${formatCurrency(pnl)}</div>
                         </div>
                         <div class="status-dot ${m.connected ? 'online' : 'offline'}"></div>
                     </div>
                 `}).join('');
             }
 
+            // ─── Slave Panel ───
             const slavesEl = document.getElementById('slavesList');
             if (status.slaves.length === 0) {
                 slavesEl.innerHTML = '<div class="empty-state"><div class="empty-emoji">⏳</div>Waiting for Slave</div>';
@@ -1242,19 +1266,20 @@
                     const balance = s.info && s.info.balance ? formatCurrency(s.info.balance) : '—';
                     const equity = s.info && s.info.equity ? formatCurrency(s.info.equity) : '—';
                     const pnl = s.info && s.info.floatingPnL ? s.info.floatingPnL : 0;
-                    const pnlColor = pnl > 0 ? 'var(--accent-success)' : (pnl < 0 ? 'var(--accent-danger)' : 'var(--text-primary)');
-                    const pnlFormatted = pnl === 0 && !s.info ? '—' : formatCurrency(pnl);
+                    const pnlColor = pnl > 0 ? 'var(--accent-success)' : (pnl < 0 ? 'var(--accent-danger)' : 'var(--text-muted)');
+                    // ★ FIX: "Last seen" + time ago
+                    const lastSeen = timeAgo(s.lastHeartbeat);
                     return `
                     <div class="list-item" style="flex-wrap: wrap;">
                         <div class="avatar slave">S</div>
                         <div class="item-info">
                             <div class="item-title">${escapeHtml(s.id)}</div>
-                            <div class="item-sub">Follow: ${escapeHtml(s.subscribedTo || 'ALL')}</div>
+                            <div class="item-sub">Follow: ${escapeHtml(s.subscribedTo || 'ALL')} · ${lastSeen}</div>
                         </div>
                         <div class="item-stats" style="text-align:right; font-size:13px; margin-right:15px; display:grid; grid-template-columns: 1fr 1fr; gap: 0 15px;">
                             <div style="color:var(--text-secondary); text-align:left;">Bal: <span style="color:#fff">${balance}</span></div>
                             <div style="color:var(--text-secondary); text-align:right;">Eq: <span style="color:#fff">${equity}</span></div>
-                            <div style="grid-column: 1 / -1; margin-top:2px; font-weight:600; color:${pnlColor}">PnL: ${pnlFormatted}</div>
+                            <div style="grid-column: 1 / -1; margin-top:2px; font-weight:600; color:${pnlColor}">PnL: ${formatCurrency(pnl)}</div>
                         </div>
                         <div class="status-dot ${s.connected ? 'online' : 'offline'}"></div>
                     </div>
@@ -1286,7 +1311,13 @@
                 const badgeLetter = acct.role === 'master' ? 'M' : 'S';
                 const winPct = acct.totalTrades > 0 ? ((acct.winTrades / acct.totalTrades) * 100) : 0;
                 const winRateStr = acct.totalTrades > 0 ? winPct.toFixed(1) + '%' : '—';
-                const ddStr = parseFloat(acct.currentDD) > 0 ? `-${acct.currentDD}%` : '0%';
+
+                // ★ FIX: แสดง Max Drawdown % (ค่าสำคัญ) + Current DD
+                const maxDDPct = parseFloat(acct.maxDrawdownPct) || 0;
+                const curDDPct = parseFloat(acct.currentDD) || 0;
+                const ddStr = maxDDPct > 0
+                    ? `<div style="font-size:14px;">-${maxDDPct}%</div><div style="font-size:11px;color:var(--text-muted);">now: -${curDDPct.toFixed(1)}%</div>`
+                    : '<div style="color:var(--text-muted);">0%</div>';
 
                 return `
                     <tr>
@@ -1324,30 +1355,23 @@
             }).join('');
 
             // Update summary cards
-            let totalAum = 0, totalTrades = 0, totalWins = 0, totalAll = 0;
+            let totalAum = 0, totalTrades = 0, totalWins = 0;
             performanceData.forEach(a => {
                 totalAum += a.equity || 0;
                 totalTrades += a.totalTrades || 0;
                 totalWins += a.winTrades || 0;
-                totalAll += a.totalTrades || 0;
             });
 
             document.getElementById('perfTotalAccounts').textContent = performanceData.length;
             document.getElementById('perfTotalAum').textContent = formatCurrency(totalAum);
-            document.getElementById('perfAvgWinRate').textContent = totalAll > 0 ? ((totalWins / totalAll) * 100).toFixed(1) + '%' : '—';
+            document.getElementById('perfAvgWinRate').textContent = totalTrades > 0 ? ((totalWins / totalTrades) * 100).toFixed(1) + '%' : '—';
             document.getElementById('perfTotalTrades').textContent = totalTrades;
-
-            // Color the AUM value
-            const aumEl = document.getElementById('perfTotalAum');
-            aumEl.style.color = 'var(--text-primary)';
         }
 
         // ─── Signals Terminal ───
         function addSignal(signal) {
             signals.push(signal);
             if (signals.length > 200) signals.shift();
-            document.getElementById('signalCount').textContent = parseInt(document.getElementById('signalCount').textContent) + 1;
-            document.getElementById('lastSignalTime').textContent = formatTime(signal.time);
             renderSignals();
         }
 
@@ -1364,7 +1388,9 @@
                 const priceMatchStr = sig.fillPrice && sig.fillPrice > 0
                     ? `<span class="sig-badge sig-match">Fill: ${sig.fillPrice.toFixed(5)}</span>`
                     : '';
-                const latencyStr = sig.fillTimeMs ? `<span class="sig-badge">${sig.fillTimeMs}ms latency</span>` : '';
+                // ★ FIX: ไม่แสดง fillTimeMs เป็น latency (เดิมแสดง GetTickCount64 ดิบ = ตัวเลขมั่วเป็นพันล้าน)
+                // แสดง signal age แทน (กี่วินาทีที่แล้ว)
+                const ageStr = sig.time ? `<span class="sig-badge">${timeAgo(sig.time)}</span>` : '';
 
                 return `
                     <div class="signal-row">
@@ -1373,10 +1399,9 @@
                         <div class="sig-details">
                             <span class="sig-badge">${sig.lots ? sig.lots.toFixed(2) + 'L' : '-'}</span>
                             ${priceMatchStr}
-                            ${latencyStr}
                             <span>${escapeHtml(sig.masterID || '')}</span>
                         </div>
-                        <div class="sig-time">${formatTime(sig.time)}</div>
+                        <div class="sig-time">${ageStr} ${formatTime(sig.time)}</div>
                     </div>
                 `;
             }).join('');
@@ -1391,14 +1416,14 @@
             }
             tbody.innerHTML = tradeHistory.map(row => {
                 const typeClass = (row.type || '').split('_')[0].toLowerCase();
-                const roleClass = row.masterID.startsWith('M') ? 'master' : 'slave';
-                const roleLetter = row.masterID.startsWith('M') ? 'M' : 'S';
+                // ★ FIX: masterID เป็นเลข account เช่น "97035207" ไม่ได้ขึ้นต้นด้วย 'M'
+                // signal มาจาก Master เสมอ → แสดง M
                 return `<tr>
                     <td style="text-align:left; padding-left:24px;">${formatTime(row.time)}</td>
                     <td>${escapeHtml(row.masterID)}</td>
-                    <td><div class="acct-badge ${roleClass}" style="width:24px;height:24px;font-size:11px;">${roleLetter}</div></td>
+                    <td><div class="acct-badge master" style="width:24px;height:24px;font-size:11px;">M</div></td>
                     <td><span class="sig-symbol">${escapeHtml(row.symbol || '—')}</span></td>
-                    <td><span class="sig-type ${typeClass}">${row.type.replace('SIGNAL_', '')}</span></td>
+                    <td><span class="sig-type ${typeClass}">${(row.type || '').replace('SIGNAL_', '')}</span></td>
                     <td>${row.lots ? row.lots.toFixed(2) + 'L' : '-'}</td>
                     <td style="padding-right:24px;">${row.fillPrice ? row.fillPrice.toFixed(5) : '-'}</td>
                 </tr>`;
@@ -1441,7 +1466,13 @@
                 (h > 0 ? h + 'h ' : '') + (m > 0 || h > 0 ? m + 'm ' : '') + s + 's';
         }, 1000);
 
-        connectWebSocket();
+        function resetStats() {
+            if (!confirm('Reset ALL account statistics (drawdown, win/loss, PnL)?\nThis cannot be undone!')) return;
+            fetch(`/api/reset-performance?passcode=${passcode}`)
+                .then(r => r.json())
+                .then(data => { if(data.ok) { alert('Stats reset successfully!'); location.reload(); } })
+                .catch(e => alert('Reset failed: ' + e.message));
+        }
     </script>
 </body>
 

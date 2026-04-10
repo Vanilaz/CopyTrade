@@ -244,8 +244,8 @@ string CSocketTransport::ReceiveRaw()
    if(available > CT_MAX_MSG_SIZE) available = CT_MAX_MSG_SIZE;
    ArrayResize(buffer, available);
 
-   // Non-blocking read with short timeout
-   uint bytesRead = SocketRead(m_socket, buffer, available, 50);
+   // Non-blocking read with minimal timeout (ลดจาก 50ms → 10ms)
+   uint bytesRead = SocketRead(m_socket, buffer, available, 10);
    if(bytesRead <= 0) return "";
 
    string data = CharArrayToString(buffer, 0, bytesRead, CP_UTF8);
@@ -271,7 +271,7 @@ int CSocketTransport::ReceiveSignals(TradeSignal &signals[])
       if(available > CT_MAX_MSG_SIZE) available = CT_MAX_MSG_SIZE;
       ArrayResize(buffer, available);
       
-      uint bytesRead = SocketRead(m_socket, buffer, available, 50);
+      uint bytesRead = SocketRead(m_socket, buffer, available, 10);
       if(bytesRead > 0)
       {
          // Append to recv buffer
