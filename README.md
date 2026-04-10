@@ -1,7 +1,7 @@
 # CopyTrade MT5 — ระบบ Copy Trade ข้ามเครื่อง ข้าม Broker (Institutional Grade)
 
-> **Version 1.2** — Cross-Broker Precision & Dashboard Overhaul  
-> แก้ไข Critical Bugs: ราคา Slave ไม่ตรง Master, Latency ข้าม Broker, Dashboard แสดงข้อมูลผิด
+> **Version 2.0** — Cloud Deploy + Security Hardening  
+> รองรับ Deploy บน Free Hosting (Render/Vercel), HTTP Transport สำหรับ Cloud, Security Audit ครบ
 
 ---
 
@@ -21,6 +21,9 @@
 | ✅ **Smart Sync** | เลือกได้ว่าจะ sync position เดิมที่เปิดอยู่ก่อน EA หรือ copy เฉพาะไม้ใหม่ (InpSyncExisting) |
 | ✅ **Filling Mode Auto-Detect** | ตรวจจับ Filling Policy (IOC/FOK/RETURN) ของ Broker อัตโนมัติ ไม่ต้องตั้งค่าเอง |
 | ✅ **Bento Dashboard** | แจ้งเตือนสถานะบัญชีแบบสดๆ (Live) ด้วยหน้าต่างบัญชาการสไตล์ Bento Box |
+| ✅ **Cloud Deploy** | Deploy ฟรีบน Render.com / Vercel — ไม่ต้องเช่า VPS แยก สำหรับ Relay Server |
+| ✅ **HTTP Transport** | รองรับ WebRequest สำหรับ Cloud/Serverless — ไม่ต้องเปิด TCP Port |
+| ✅ **Auth Token** | ป้องกัน Unauthorized Access ด้วย Token ทั้ง TCP และ HTTP |
 
 ---
 
@@ -172,22 +175,89 @@ nssm start CopyTradeRelay
 |---|---|---|
 | `TCP_PORT` | `5555` | พอร์ตสำหรับรับ-ส่ง Signal (Master/Slave) |
 | `HTTP_PORT` | `8080` | พอร์ตสำหรับ Web Dashboard + WebSocket |
-| `AUTH_TOKEN` | `copytrade2025` | Token สำหรับยืนยันตัวตน (ยังไม่ได้ enforce) |
+| `AUTH_TOKEN` | *(ว่าง)* | **สำคัญ!** Token สำหรับยืนยันตัวตน — ต้องตั้งค่า |
+| `DASHBOARD_PASSCODE` | *(ว่าง)* | รหัสผ่านเข้า Dashboard |
+| `HTTP_ONLY` | `false` | ตั้ง `true` เพื่อเปิดเฉพาะ HTTP (ไม่มี TCP) |
+| `TELEGRAM_BOT_TOKEN` | *(ว่าง)* | Telegram Bot Token สำหรับแจ้งเตือน |
+| `TELEGRAM_CHAT_ID` | *(ว่าง)* | Telegram Chat ID |
+| `BROKER_TIMEZONE` | `Europe/Athens` | Timezone ของ Broker (EET/EEST) |
 
 ตั้งค่าผ่าน Environment:
 ```bash
 # Linux
-TCP_PORT=5555 HTTP_PORT=8080 node server.js
+AUTH_TOKEN=my-secret TCP_PORT=5555 HTTP_PORT=8080 node server.js
 
 # Windows
-set TCP_PORT=5555 && set HTTP_PORT=8080 && node server.js
+set AUTH_TOKEN=my-secret && set TCP_PORT=5555 && set HTTP_PORT=8080 && node server.js
 ```
+
+---
+
+## ☁️ Deploy ฟรีบน Cloud (ไม่ต้องเช่า VPS)
+
+### วิธีที่ 1: Render.com (แนะนำ — ง่ายที่สุด, ฟรี)
+
+Render.com รองรับ TCP + HTTP, Auto-deploy จาก GitHub, ฟรี 750 ชม./เดือน
+
+```
+1. Fork/Push repo ไปที่ GitHub
+2. ไปที่ https://dashboard.render.com
+3. กด "New +" → "Blueprint" → เลือก repo
+4. Render จะอ่าน render.yaml อัตโนมัติ
+5. ใส่ค่า Environment Variables (AUTH_TOKEN, DASHBOARD_PASSCODE)
+6. กด Deploy!
+```
+
+หรือ Manual:
+```
+1. กด "New +" → "Web Service"
+2. เลือก repo, Branch: main
+3. Build Command: cd Server && npm ci --production
+4. Start Command: cd Server && node server.js
+5. ตั้ง Environment Variables
+6. Deploy
+```
+
+> URL จะได้แบบ `https://copytrade-relay.onrender.com`
+
+### วิธีที่ 2: Vercel (Serverless — HTTP Only)
+
+> ⚠️ Vercel เป็น Serverless ไม่รองรับ TCP — EA ต้องใช้โหมด `COPY_HTTP`
+
+```
+1. Fork/Push repo ไปที่ GitHub
+2. ไปที่ https://vercel.com → Import Project
+3. Root Directory: Server
+4. ตั้ง Environment Variables: AUTH_TOKEN, DASHBOARD_PASSCODE, HTTP_ONLY=true
+5. Deploy
+```
+
+### ตั้งค่า EA สำหรับ Cloud Deploy
+
+เมื่อ deploy บน Cloud แล้ว ตั้งค่า EA ดังนี้:
+
+**Master EA:**
+| Parameter | ค่า |
+|---|---|
+| Copy Mode | `HTTP (Cloud/Serverless)` |
+| Relay Server IP | `https://copytrade-relay.onrender.com` |
+| Auth Token | Token ที่ตั้งไว้ใน ENV |
+
+**Slave EA:**
+| Parameter | ค่า |
+|---|---|
+| Copy Mode | `HTTP (Cloud/Serverless)` |
+| Relay Server IP | `https://copytrade-relay.onrender.com` |
+| Auth Token | Token ที่ตั้งไว้ใน ENV |
+
+> ⚠️ **สำคัญ:** ต้องเพิ่ม URL ใน MT5: `Tools → Options → Expert Advisors → Allow WebRequest for listed URL` แล้วใส่ URL ของ server
 
 ---
 
 ## 🖧 โครงสร้าง Network (Architecture)
 
 ```
+      Remote Mode — TCP (VPS / Local):
                 ┌─────────────────┐
                 │  📊 Dashboard   │
                 │  (Browser)      │
@@ -198,7 +268,14 @@ set TCP_PORT=5555 && set HTTP_PORT=8080 && node server.js
 ┌──────────┐    ┌───────────────────┐    ┌──────────┐
 │ 👑 Master│───▶│  🔁 Relay Server  │───▶│ 📋 Slave │
 │  MT5 EA  │TCP │  Node.js          │TCP │  MT5 EA  │
-│  VPS-A   │5555│  VPS-A / VPS-C    │5555│  VPS-B   │
+│  VPS-A   │5555│  VPS / Cloud      │5555│  VPS-B   │
+└──────────┘    └───────────────────┘    └──────────┘
+
+      Cloud Mode — HTTP (Render / Vercel):
+┌──────────┐    ┌───────────────────┐    ┌──────────┐
+│ 👑 Master│───▶│  ☁️ Cloud Server  │◀───│ 📋 Slave │
+│  MT5 EA  │POST│  Render / Vercel  │POLL│  MT5 EA  │
+│  VPS-A   │HTTP│  (Free Hosting)   │HTTP│  VPS-B   │
 └──────────┘    └───────────────────┘    └──────────┘
 
       Local Mode (เครื่องเดียวกัน):
@@ -209,11 +286,12 @@ set TCP_PORT=5555 && set HTTP_PORT=8080 && node server.js
 └──────────┘    └───────────────────┘    └──────────┘
 ```
 
-- **Master EA** → เทรดปกติ → จับ deal → ส่ง signal (ไฟล์ JSON หรือ TCP)
+- **Master EA** → เทรดปกติ → จับ deal → ส่ง signal (File / TCP / HTTP)
 - **Local Mode** → Master เขียนไฟล์ไปยัง `Common Files\copytrade\` → Slave อ่านทุก 50ms
-- **Remote Mode** → Relay Server → รับ signal → กระจายส่งไปยัง Slave ทุกตัว
+- **Remote TCP** → Relay Server → รับ signal → push ไปยัง Slave ทุกตัว (เร็วที่สุด)
+- **Cloud HTTP** → Master POST signal → Slave poll ทุก 1-2 วินาที (deploy ฟรี)
 - **Slave EA** → รับ signal → เปิดออเดอร์ตาม Master (รองรับ Price Matching)
-- **Dashboard** → เชื่อมต่อผ่าน WebSocket → แสดงผลแบบ Real-time
+- **Dashboard** → เชื่อมต่อผ่าน WebSocket/SSE → แสดงผลแบบ Real-time
 
 ---
 
@@ -359,9 +437,12 @@ Slave ใช้ Set-based dedup (เก็บ 500 signalID ล่าสุด) �
 ```
 CopyTrade/
 │
-├── Server/                           ← Relay Server (Node.js)
-│   ├── server.js                     ← ตัวกลางส่ง Signal
+├── Server/                           ← Relay Server v2.0 (Node.js)
+│   ├── server.js                     ← Dual-Mode: TCP + HTTP Transport
 │   ├── package.json                  ← Dependencies (ws)
+│   ├── .env.example                  ← Template ค่า Environment Variables
+│   ├── Dockerfile                    ← Container deployment
+│   ├── vercel.json                   ← Vercel serverless config
 │   └── public/
 │       └── dashboard.html            ← Web Dashboard UI
 │
@@ -371,18 +452,21 @@ CopyTrade/
 │   │   └── CopyTradeSlave.mq5       ← EA ฝั่ง Slave
 │   │
 │   └── Include/CopyTrade/
-│       ├── CopyTradeDefines.mqh      ← Structs, Enums, ค่าคงที่, Signal ID Generator
-│       ├── TradeExecutor.mqh         ← Engine สั่งเปิด/ปิดออเดอร์ + Price Matching + Auto-Fill
+│       ├── CopyTradeDefines.mqh      ← Structs, Enums, ค่าคงที่
+│       ├── TradeExecutor.mqh         ← Engine สั่งเปิด/ปิดออเดอร์ + Price Matching
 │       ├── SymbolMapper.mqh          ← Fuzzy Deep Scan จับคู่ Symbol
-│       ├── FileTransport.mqh         ← Local IPC ผ่าน FILE_COMMON + Set-Based Dedup
-│       ├── SocketTransport.mqh       ← การสื่อสารข้าม VPS (TCP Socket)
-│       ├── JsonHelper.mqh            ← Serialize/Deserialize Signal เป็น JSON
+│       ├── FileTransport.mqh         ← Local IPC ผ่าน FILE_COMMON
+│       ├── SocketTransport.mqh       ← Remote TCP Socket Transport
+│       ├── HttpTransport.mqh         ← ★ Cloud HTTP Transport (WebRequest)
+│       ├── JsonHelper.mqh            ← Serialize/Deserialize JSON
 │       ├── DashboardUI.mqh           ← Dashboard แสดงผลบนจอ MT5
 │       └── Logger.mqh                ← ระบบ Log
 │
 ├── Config/
+│   ├── config.json                   ← Non-sensitive defaults
 │   └── SymbolMap.txt                 ← Manual Symbol Mapping (Override)
 │
+├── render.yaml                       ← ★ Render.com one-click deploy
 └── README.md                         ← ไฟล์นี้
 ```
 
@@ -390,19 +474,53 @@ CopyTrade/
 
 ## 🛡️ Checklist ก่อน Go Live
 
-- [ ] **Relay Server** — รันเป็น Service (systemd/NSSM) ไม่ใช่แค่เปิด CMD ทิ้งไว้
-- [ ] **Firewall** — เปิด Port 5555 (TCP) ให้เฉพาะ IP ของ VPS ที่ใช้ Master/Slave
-- [ ] **Dashboard** — Port 8080 เปิดเฉพาะ IP ส่วนตัวของคุณ (อย่าเปิดให้ทั้งโลก)
+- [ ] **AUTH_TOKEN** — ตั้งค่า token ที่แข็งแรง (ห้ามใช้ค่าเริ่มต้น!)
+- [ ] **Relay Server** — รันเป็น Service (systemd/NSSM) หรือ deploy บน Cloud (Render)
+- [ ] **Firewall** — เปิด Port 5555 (TCP) ให้เฉพาะ IP ที่ต้องการ (ถ้าใช้ TCP mode)
+- [ ] **Dashboard** — ตั้ง `DASHBOARD_PASSCODE` เพื่อป้องกัน
 - [ ] **MT5 Settings** — เปิด `Allow Algo Trading` + `Allow DLL Imports`
+- [ ] **MT5 WebRequest** — ถ้าใช้ HTTP mode: เพิ่ม URL server ใน `Allow WebRequest for listed URL`
 - [ ] **Node.js Version** — ใช้ LTS เท่านั้น (18.x หรือ 20.x)
 - [ ] **ทดสอบ** — เปิด Demo Account ทดสอบก่อนใช้ Real เสมอ
-- [ ] **Execution Mode** — แนะนำ `EXEC_MATCH_MASTER` ทั้ง Broker เดียวกัน & ข้าม Broker (3-tier auto fallback)
-- [ ] **SyncExisting** — ถ้ามี position เปิดอยู่ก่อนรัน EA ให้ใช้ค่า default `false` (ป้องกันเปิดซ้ำราคาไม่ตรง)
+- [ ] **Execution Mode** — แนะนำ `EXEC_MATCH_MASTER` ทั้ง Broker เดียวกัน & ข้าม Broker
+- [ ] **SyncExisting** — ถ้ามี position เปิดอยู่ก่อนรัน EA ให้ใช้ค่า default `false`
 - [ ] **Monitor** — เปิด Dashboard ดู Signal / สถานะบัญชี ตลอดเวลาในช่วงแรก
 
 ---
 
 ## 🔄 Changelog
+
+### v2.0 — Cloud Deploy + Security Hardening (2026-04-10)
+
+**☁️ Cloud Deploy (ใหม่!):**
+- รองรับ Deploy ฟรีบน **Render.com** (แนะนำ) และ **Vercel** (Serverless)
+- เพิ่ม `render.yaml` — กดปุ่มเดียว deploy ทั้ง server
+- เพิ่ม `Dockerfile` — รองรับ Container deployment (Railway, Fly.io, etc.)
+- เพิ่ม `vercel.json` — Serverless deployment (HTTP-only mode)
+- Server รองรับ **HTTP-ONLY mode** (`HTTP_ONLY=true`) สำหรับ Serverless platform
+- ใช้ `PORT` environment variable อัตโนมัติ (Render/Vercel กำหนดให้)
+
+**🌐 HTTP Transport (ใหม่!):**
+- เพิ่ม `HttpTransport.mqh` — ใช้ `WebRequest()` สื่อสารผ่าน HTTP แทน TCP Socket
+- EA API endpoints: `/api/ea/auth`, `/api/ea/heartbeat`, `/api/ea/signal`, `/api/ea/poll`, `/api/ea/subscribe`
+- Master ส่ง signal ผ่าน HTTP POST, Slave poll ผ่าน HTTP GET
+- เพิ่ม `COPY_HTTP` mode ใน `ENUM_COPY_MODE` — เลือกได้ใน EA input
+- เพิ่ม SSE (Server-Sent Events) endpoint สำหรับ Dashboard บน Serverless
+- Health check endpoint `/health` สำหรับ monitoring
+
+**🔒 Security Hardening:**
+- ลบ hardcoded Telegram token ออก — ใช้ Environment Variables เท่านั้น
+- เพิ่ม TCP auth token validation — ตรวจ token ก่อน accept connection
+- แก้ Path Traversal vulnerability ใน HTTP static file serving
+- เพิ่ม `InpAuthToken` input parameter ใน Master/Slave EA
+
+**⚡ Performance:**
+- Throttle dashboard broadcasts สูงสุด 1 ครั้ง/วินาที (เดิมทุก heartbeat)
+- Batch history file writes ทุก 5 วินาที (ป้องกัน concurrent write)
+- `GetCumulativeDW()` scan แบบ incremental — O(1) ปกติ, O(n) เฉพาะเมื่อมี DW ใหม่
+- `NormalizeLot` คำนวณ precision จาก stepLot แบบ dynamic (เดิม hardcode 2 ทศนิยม)
+
+---
 
 ### v1.2 — Cross-Broker Precision & Dashboard Overhaul (2026-04-10)
 

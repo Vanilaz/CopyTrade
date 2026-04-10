@@ -47,7 +47,8 @@ enum ENUM_COPY_MODE
 {
    COPY_LOCAL = 0,               // Local Only (File-based)
    COPY_REMOTE,                  // Remote Only (TCP Socket)
-   COPY_BOTH                     // ทั้ง Local + Remote
+   COPY_BOTH,                    // ทั้ง Local + Remote
+   COPY_HTTP                     // HTTP (Cloud/Serverless — ใช้ WebRequest)
 };
 
 //--- Lot Calculation Mode

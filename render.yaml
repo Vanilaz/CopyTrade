@@ -1,0 +1,31 @@
+# Render.com Blueprint — One-click deploy
+# https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: copytrade-relay
+    runtime: node
+    region: singapore  # เปลี่ยนเป็น region ที่ใกล้ broker ที่สุด
+    plan: free
+    buildCommand: cd Server && npm ci --production
+    startCommand: cd Server && node server.js
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: HTTP_PORT
+        value: 8080
+      - key: TCP_PORT
+        value: 5555
+      - key: AUTH_TOKEN
+        sync: false  # ใส่ค่าใน Render Dashboard
+      - key: DASHBOARD_PASSCODE
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: BROKER_TIMEZONE
+        value: Europe/Athens
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
+    autoDeploy: true

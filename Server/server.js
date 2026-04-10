@@ -1,8 +1,9 @@
 /**
  * ═══════════════════════════════════════════════════════
- *  CopyTrade Relay Server v1.1
- *  TCP Hub สำหรับ Master/Slave + WebSocket Dashboard
- *  + Per-Account Performance Tracking
+ *  CopyTrade Relay Server v2.0
+ *  Dual-Mode: TCP + HTTP Transport
+ *  Deployable on VPS (TCP+HTTP) or Cloud (HTTP-only)
+ *  + WebSocket/SSE Dashboard + Performance Tracking
  * ═══════════════════════════════════════════════════════
  */
 
@@ -47,6 +48,11 @@ const signalLog = [];           // Recent signals for dashboard
 const tradeHistory = [];        // Closed trades collection
 const connectionLog = [];       // Connection events
 let wsClients = [];             // WebSocket dashboard clients
+let sseClients = [];            // SSE dashboard clients (for serverless)
+
+// ─── HTTP Transport State ────────────────────────────────
+// HTTP-connected EAs (same shape as TCP clients but socket=null)
+let signalSeq = 0;              // Monotonic sequence for HTTP polling
 
 // ─── Performance Tracking ────────────────────────────────
 // Per-account performance stats
@@ -515,22 +521,34 @@ function scheduleDashboardUpdate() {
 
 function broadcastDashboard(type, data) {
   const msg = JSON.stringify({ type, data, timestamp: Date.now() });
+  // WebSocket clients
   wsClients = wsClients.filter(ws => {
     try {
       if (ws.readyState === 1) { ws.send(msg); return true; }
       return false;
     } catch { return false; }
   });
+  // SSE clients
+  if (sseClients.length > 0) {
+    const sseMsg = `data: ${msg}\n\n`;
+    sseClients = sseClients.filter(res => {
+      try { res.write(sseMsg); return true; } catch { return false; }
+    });
+  }
 }
 
 function getStatus() {
   const masterList = [];
   masters.forEach((m, id) => {
-    masterList.push({ id, connected: !m.socket.destroyed, lastHeartbeat: m.lastHeartbeat, info: m.info });
+    const isHttp = m.transport === 'http';
+    const connected = isHttp ? (Date.now() - m.lastHeartbeat < 60000) : (m.socket && !m.socket.destroyed);
+    masterList.push({ id, transport: m.transport || 'tcp', connected, lastHeartbeat: m.lastHeartbeat, info: m.info });
   });
   const slaveList = [];
   slaves.forEach((s, id) => {
-    slaveList.push({ id, subscribedTo: s.subscribedTo, connected: !s.socket.destroyed, lastHeartbeat: s.lastHeartbeat, info: s.info });
+    const isHttp = s.transport === 'http';
+    const connected = isHttp ? (Date.now() - s.lastHeartbeat < 60000) : (s.socket && !s.socket.destroyed);
+    slaveList.push({ id, subscribedTo: s.subscribedTo, transport: s.transport || 'tcp', connected, lastHeartbeat: s.lastHeartbeat, info: s.info });
   });
   return { masters: masterList, slaves: slaveList, signalCount: signalLog.length };
 }
@@ -721,11 +739,20 @@ const tcpServer = net.createServer((socket) => {
         scheduleHistorySave();
       }
 
+      // Assign sequence number for HTTP polling
+      signalEntry.seq = ++signalSeq;
+
       // Route to subscribed slaves
       let routedCount = 0;
       slaves.forEach((slave, slaveId) => {
         if (slave.subscribedTo === masterID || slave.subscribedTo === '') {
-          if (!slave.socket.destroyed) {
+          if (slave.transport === 'http') {
+            // Queue for HTTP polling
+            if (!slave.pendingSignals) slave.pendingSignals = [];
+            slave.pendingSignals.push(msg);
+            if (slave.pendingSignals.length > 100) slave.pendingSignals.shift();
+            routedCount++;
+          } else if (slave.socket && !slave.socket.destroyed) {
             sendMessage(slave.socket, msg);
             routedCount++;
           }
@@ -753,19 +780,22 @@ const tcpServer = net.createServer((socket) => {
 });
 
 // ─── Heartbeat checker ───────────────────────────────────
+const HTTP_HEARTBEAT_TIMEOUT = 60000; // 60s for HTTP (longer due to polling latency)
 setInterval(() => {
   const now = Date.now();
   masters.forEach((m, id) => {
-    if (now - m.lastHeartbeat > CONFIG.heartbeatTimeout) {
-      log('WARN', `Master "${id}" heartbeat timeout — disconnecting`);
-      m.socket.destroy();
+    const timeout = m.transport === 'http' ? HTTP_HEARTBEAT_TIMEOUT : CONFIG.heartbeatTimeout;
+    if (now - m.lastHeartbeat > timeout) {
+      log('WARN', `Master "${id}" (${m.transport || 'tcp'}) heartbeat timeout — removing`);
+      if (m.socket) m.socket.destroy();
       masters.delete(id);
     }
   });
   slaves.forEach((s, id) => {
-    if (now - s.lastHeartbeat > CONFIG.heartbeatTimeout) {
-      log('WARN', `Slave "${id}" heartbeat timeout — disconnecting`);
-      s.socket.destroy();
+    const timeout = s.transport === 'http' ? HTTP_HEARTBEAT_TIMEOUT : CONFIG.heartbeatTimeout;
+    if (now - s.lastHeartbeat > timeout) {
+      log('WARN', `Slave "${id}" (${s.transport || 'tcp'}) heartbeat timeout — removing`);
+      if (s.socket) s.socket.destroy();
       slaves.delete(id);
     }
   });
@@ -782,7 +812,38 @@ try {
   log('WARN', 'ws package not installed — run: npm install ws');
 }
 
-const httpServer = http.createServer((req, res) => {
+// ─── HTTP Body Parser ────────────────────────────────────
+function parseBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', c => { size += c.length; if (size > 65536) { req.destroy(); reject(new Error('Body too large')); } chunks.push(c); });
+    req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch { resolve({}); } });
+    req.on('error', reject);
+  });
+}
+
+// ─── EA Auth Helper ──────────────────────────────────────
+function eaCheckAuth(req) {
+  const auth = req.headers['authorization'] || '';
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  if (CONFIG.authToken && token !== CONFIG.authToken) return null;
+  return token || 'ok';
+}
+
+function setCORS(res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-EA-ID, X-EA-Role, X-Passcode');
+}
+
+function jsonResponse(res, status, data) {
+  setCORS(res);
+  res.writeHead(status, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify(data));
+}
+
+const httpServer = http.createServer(async (req, res) => {
   // Extract passcode if set from header or query
   const checkAuth = () => {
     const headerCode = req.headers['x-passcode'];
@@ -883,6 +944,215 @@ const httpServer = http.createServer((req, res) => {
   }
 
 
+  // ─── CORS Preflight ───
+  if (req.method === 'OPTIONS') {
+    setCORS(res);
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  // ─── Health Check (for deployment platforms) ───
+  if (pathname === '/health' || pathname === '/api/health') {
+    jsonResponse(res, 200, {
+      status: 'ok',
+      version: '2.0',
+      uptime: process.uptime(),
+      masters: masters.size,
+      slaves: slaves.size,
+      transport: { tcp: !!tcpServer, http: true },
+    });
+    return;
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  EA HTTP API — สำหรับ MQL5 WebRequest transport
+  // ═══════════════════════════════════════════════════════
+
+  // POST /api/ea/auth — EA authenticates
+  if (pathname === '/api/ea/auth' && req.method === 'POST') {
+    try {
+      const body = await parseBody(req);
+      const { role, id, token } = body;
+
+      // Validate auth token
+      if (CONFIG.authToken && token !== CONFIG.authToken) {
+        return jsonResponse(res, 401, { ok: false, error: 'Invalid auth token' });
+      }
+      if (!role || !id) {
+        return jsonResponse(res, 400, { ok: false, error: 'Missing role or id' });
+      }
+
+      if (role === 'master') {
+        masters.set(id, { socket: null, transport: 'http', lastHeartbeat: Date.now(), info: {} });
+        log('INFO', `Master "${id}" authenticated via HTTP`);
+      } else {
+        slaves.set(id, { socket: null, transport: 'http', lastHeartbeat: Date.now(), subscribedTo: '', info: {}, pendingSignals: [] });
+        log('INFO', `Slave "${id}" authenticated via HTTP`);
+      }
+
+      getOrCreatePerf(id, role);
+      connectionLog.push({ time: Date.now(), event: 'connect', role, id, transport: 'http' });
+      broadcastDashboard('connection', { event: 'connect', role, id });
+      broadcastDashboard('status', getStatus());
+
+      return jsonResponse(res, 200, { ok: true, id, role, transport: 'http' });
+    } catch (e) {
+      return jsonResponse(res, 500, { ok: false, error: e.message });
+    }
+  }
+
+  // POST /api/ea/heartbeat — EA sends heartbeat
+  if (pathname === '/api/ea/heartbeat' && req.method === 'POST') {
+    if (!eaCheckAuth(req)) return jsonResponse(res, 401, { ok: false, error: 'Unauthorized' });
+    try {
+      const body = await parseBody(req);
+      const { id, role } = body;
+      if (!id) return jsonResponse(res, 400, { ok: false, error: 'Missing id' });
+
+      let clientObj = masters.get(id) || slaves.get(id);
+      if (!clientObj) {
+        // Auto-register if not found (reconnect after timeout)
+        if (role === 'master') {
+          masters.set(id, { socket: null, transport: 'http', lastHeartbeat: Date.now(), info: {} });
+          clientObj = masters.get(id);
+        } else {
+          slaves.set(id, { socket: null, transport: 'http', lastHeartbeat: Date.now(), subscribedTo: '', info: {}, pendingSignals: [] });
+          clientObj = slaves.get(id);
+        }
+        getOrCreatePerf(id, role || 'unknown');
+      }
+
+      clientObj.lastHeartbeat = Date.now();
+      if (body.balance !== undefined) clientObj.info.balance = body.balance;
+      if (body.equity !== undefined) clientObj.info.equity = body.equity;
+      if (body.marginLevel !== undefined) clientObj.info.marginLevel = body.marginLevel;
+      if (body.marginUsed !== undefined) clientObj.info.marginUsed = body.marginUsed;
+      if (body.freeMargin !== undefined) clientObj.info.freeMargin = body.freeMargin;
+      if (body.floatingPnL !== undefined) clientObj.info.floatingPnL = body.floatingPnL;
+      if (body.positions !== undefined) clientObj.info.positions = body.positions;
+      if (body.positionDetails) clientObj.info.positionDetails = body.positionDetails;
+
+      updateAccountPerformance(id, role || clientObj.role || 'unknown', {
+        balance: body.balance, equity: body.equity, marginLevel: body.marginLevel,
+        marginUsed: body.marginUsed, freeMargin: body.freeMargin,
+        floatingPnL: body.floatingPnL, positions: body.positions,
+        positionDetails: body.positionDetails, cumulativeDW: body.cumulativeDW,
+      });
+
+      snapshotEquityHistory(id, body.equity || 0, body.balance || 0);
+      scheduleDashboardUpdate();
+
+      return jsonResponse(res, 200, { ok: true, ts: Date.now() });
+    } catch (e) {
+      return jsonResponse(res, 500, { ok: false, error: e.message });
+    }
+  }
+
+  // POST /api/ea/signal — Master sends trade signal
+  if (pathname === '/api/ea/signal' && req.method === 'POST') {
+    if (!eaCheckAuth(req)) return jsonResponse(res, 401, { ok: false, error: 'Unauthorized' });
+    try {
+      const msg = await parseBody(req);
+      const masterID = msg.mid || msg.id || '';
+      if (!masterID) return jsonResponse(res, 400, { ok: false, error: 'Missing master ID' });
+
+      log('INFO', `HTTP Signal from Master "${masterID}": ${msg.type || 'unknown'} ${msg.sym || ''}`);
+
+      const signalEntry = {
+        time: Date.now(), masterID, type: msg.type, symbol: msg.sym,
+        lots: msg.lots, price: msg.price, fillPrice: msg.fp || msg.price,
+        ticket: msg.ticket, fillTimeMs: 0, seq: ++signalSeq,
+      };
+      signalLog.push(signalEntry);
+      if (signalLog.length > CONFIG.maxSignalLog) signalLog.shift();
+
+      if (msg.type && msg.type.includes('CLOSE')) {
+        tradeHistory.unshift(signalEntry);
+        if (tradeHistory.length > CONFIG.maxHistoryLog) tradeHistory.pop();
+        scheduleHistorySave();
+      }
+
+      // Route to ALL subscribed slaves (both TCP and HTTP)
+      let routedCount = 0;
+      slaves.forEach((slave, slaveId) => {
+        if (slave.subscribedTo === masterID || slave.subscribedTo === '') {
+          if (slave.transport === 'http') {
+            if (!slave.pendingSignals) slave.pendingSignals = [];
+            slave.pendingSignals.push(msg);
+            if (slave.pendingSignals.length > 100) slave.pendingSignals.shift();
+            routedCount++;
+          } else if (slave.socket && !slave.socket.destroyed) {
+            sendMessage(slave.socket, msg);
+            routedCount++;
+          }
+        }
+      });
+
+      log('INFO', `HTTP Signal routed to ${routedCount} slave(s)`);
+      broadcastDashboard('signal', signalEntry);
+
+      return jsonResponse(res, 200, { ok: true, routed: routedCount, seq: signalEntry.seq });
+    } catch (e) {
+      return jsonResponse(res, 500, { ok: false, error: e.message });
+    }
+  }
+
+  // GET /api/ea/poll — Slave polls for new signals
+  if (pathname === '/api/ea/poll' && req.method === 'GET') {
+    if (!eaCheckAuth(req)) return jsonResponse(res, 401, { ok: false, error: 'Unauthorized' });
+    const slaveId = currentUrl.searchParams.get('id');
+    if (!slaveId) return jsonResponse(res, 400, { ok: false, error: 'Missing slave id' });
+
+    const slave = slaves.get(slaveId);
+    if (!slave) return jsonResponse(res, 404, { ok: false, error: 'Slave not registered' });
+
+    // Drain pending signals
+    const signals = slave.pendingSignals || [];
+    slave.pendingSignals = [];
+    slave.lastHeartbeat = Date.now(); // polling counts as heartbeat
+
+    return jsonResponse(res, 200, { ok: true, signals, count: signals.length, lastSeq: signalSeq });
+  }
+
+  // POST /api/ea/subscribe — Slave subscribes to master
+  if (pathname === '/api/ea/subscribe' && req.method === 'POST') {
+    if (!eaCheckAuth(req)) return jsonResponse(res, 401, { ok: false, error: 'Unauthorized' });
+    try {
+      const body = await parseBody(req);
+      const { slaveID, masterID } = body;
+      if (!slaveID) return jsonResponse(res, 400, { ok: false, error: 'Missing slaveID' });
+
+      const slave = slaves.get(slaveID);
+      if (slave) {
+        slave.subscribedTo = masterID || '';
+        log('INFO', `HTTP Slave "${slaveID}" subscribed to Master "${masterID}"`);
+        broadcastDashboard('status', getStatus());
+      }
+
+      return jsonResponse(res, 200, { ok: true });
+    } catch (e) {
+      return jsonResponse(res, 500, { ok: false, error: e.message });
+    }
+  }
+
+  // GET /api/ea/sse — Server-Sent Events for dashboard (serverless-friendly)
+  if (pathname === '/api/ea/sse') {
+    if (!checkAuth()) { res.writeHead(401); res.end('Unauthorized'); return; }
+    setCORS(res);
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+    res.write(`data: ${JSON.stringify({ type: 'status', data: getStatus(), timestamp: Date.now() })}\n\n`);
+    res.write(`data: ${JSON.stringify({ type: 'performance', data: getPerformanceData(), timestamp: Date.now() })}\n\n`);
+
+    sseClients.push(res);
+    req.on('close', () => { sseClients = sseClients.filter(c => c !== res); });
+    return;
+  }
+
   // Serve dashboard — ★ SECURITY: ป้องกัน path traversal
   const publicDir = path.join(__dirname, 'public');
   let filePath = pathname === '/' ? '/dashboard.html' : pathname;
@@ -948,30 +1218,44 @@ if (WebSocket) {
 // ─── Start Servers ───────────────────────────────────────
 loadPerformance();
 
-tcpServer.listen(CONFIG.tcpPort, '0.0.0.0', () => {
-  console.log('');
-  console.log('  ═══════════════════════════════════════════════');
-  console.log('  ║  CopyTrade Relay Server v1.2                ║');
-  console.log('  ║  + Per-Account Performance Tracking         ║');
-  console.log('  ═══════════════════════════════════════════════');
-  console.log(`  ║  TCP Port  : ${CONFIG.tcpPort} (Master/Slave EA)`);
-  console.log(`  ║  HTTP Port : ${CONFIG.httpPort} (Web Dashboard)`);
-  console.log(`  ║  Auth Token: ${CONFIG.authToken.substr(0, 4)}****`);
-  console.log('  ═══════════════════════════════════════════════');
-  console.log('');
-});
+const HTTP_ONLY = process.env.HTTP_ONLY === 'true' || process.env.VERCEL === '1';
 
-httpServer.listen(CONFIG.httpPort, '0.0.0.0', () => {
-  log('INFO', `Dashboard: http://localhost:${CONFIG.httpPort}`);
+if (!HTTP_ONLY) {
+  // TCP server (for VPS/local deployment)
+  tcpServer.listen(CONFIG.tcpPort, '0.0.0.0', () => {
+    console.log('');
+    console.log('  ═══════════════════════════════════════════════');
+    console.log('  ║  CopyTrade Relay Server v2.0                ║');
+    console.log('  ║  Dual-Mode: TCP + HTTP Transport            ║');
+    console.log('  ═══════════════════════════════════════════════');
+    console.log(`  ║  TCP Port  : ${CONFIG.tcpPort} (Master/Slave EA)`);
+    console.log(`  ║  HTTP Port : ${CONFIG.httpPort} (Dashboard + EA API)`);
+    console.log(`  ║  EA API    : http://localhost:${CONFIG.httpPort}/api/ea/`);
+    console.log(`  ║  Auth Token: ${CONFIG.authToken ? CONFIG.authToken.substr(0, 4) + '****' : '(none)'}`);
+    console.log('  ═══════════════════════════════════════════════');
+    console.log('');
+  });
+} else {
+  log('INFO', '☁️ Running in HTTP-ONLY mode (no TCP server)');
+}
+
+const PORT = parseInt(process.env.PORT) || CONFIG.httpPort;
+httpServer.listen(PORT, '0.0.0.0', () => {
+  log('INFO', `Dashboard: http://localhost:${PORT}`);
+  log('INFO', `EA API: http://localhost:${PORT}/api/ea/`);
+  log('INFO', `Health: http://localhost:${PORT}/health`);
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
   log('INFO', 'Shutting down...');
   savePerformance();
-  tcpServer.close();
+  if (!HTTP_ONLY) tcpServer.close();
   httpServer.close();
-  masters.forEach(m => m.socket.destroy());
-  slaves.forEach(s => s.socket.destroy());
+  masters.forEach(m => { if (m.socket) m.socket.destroy(); });
+  slaves.forEach(s => { if (s.socket) s.socket.destroy(); });
   process.exit(0);
 });
+
+// Export for Vercel/serverless
+module.exports = httpServer;

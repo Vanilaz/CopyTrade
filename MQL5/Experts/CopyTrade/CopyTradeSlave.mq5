@@ -1,7 +1,7 @@
 //+------------------------------------------------------------------+
 //|                                          CopyTradeSlave.mq5      |
 //|                    Slave EA — รับ Signal & Execute Exact Match   |
-//|                    รองรับ Local/Remote + Cross-Broker             |
+//|                    รองรับ Local/Remote/HTTP + Cross-Broker        |
 //+------------------------------------------------------------------+
 #property copyright "CopyTrade System"
 #property version   "1.00"
@@ -15,6 +15,7 @@
 #include <CopyTrade\TradeExecutor.mqh>
 #include <CopyTrade\FileTransport.mqh>
 #include <CopyTrade\SocketTransport.mqh>
+#include <CopyTrade\HttpTransport.mqh>
 #include <CopyTrade\DashboardUI.mqh>
 
 //+------------------------------------------------------------------+
@@ -29,8 +30,9 @@ input group "═══════════ โหมดการรับ �
 input ENUM_COPY_MODE InpCopyMode  = COPY_BOTH;          // โหมด Copy
 
 input group "═══════════ Remote Server ═══════════"
-input string   InpRelayHost       = "127.0.0.1";        // Relay Server IP
-input int      InpRelayPort       = 5555;               // Relay Server Port
+input string   InpRelayHost       = "127.0.0.1";        // Relay Server IP (TCP) หรือ URL (HTTP)
+input int      InpRelayPort       = 5555;               // Relay Server Port (TCP only)
+input string   InpAuthToken       = "";                  // Auth Token (สำหรับ security)
 
 input group "═══════════ Lot ═══════════"
 input ENUM_LOT_MODE InpLotMode    = LOT_EXACT;          // วิธีคำนวณ Lot
@@ -66,6 +68,7 @@ input ENUM_LOG_LEVEL InpLogLevel  = LOG_INFO;            // Log Level
 //+------------------------------------------------------------------+
 CFileTransport    *g_fileTransport;
 CSocketTransport  *g_socketTransport;
+CHttpTransport    *g_httpTransport;
 CSymbolMapper     *g_symbolMapper;
 CTradeExecutor    *g_executor;
 CDashboardUI      g_ui;
@@ -133,13 +136,13 @@ int OnInit()
       CTLog(LOG_INFO, "📁 File Transport: Ready");
    }
 
-   //--- Initialize Socket Transport (Remote)
+   //--- Initialize Socket Transport (Remote TCP)
    if(InpCopyMode == COPY_REMOTE || InpCopyMode == COPY_BOTH)
    {
       g_socketTransport = new CSocketTransport();
       g_socketTransport.SetHost(InpRelayHost);
       g_socketTransport.SetPort(InpRelayPort);
-      g_socketTransport.SetToken("");
+      g_socketTransport.SetToken(InpAuthToken);
       g_socketTransport.SetID(InpSlaveID);
       g_socketTransport.SetRole(ROLE_SLAVE);
 
@@ -149,6 +152,24 @@ int OnInit()
       {
          CTLog(LOG_INFO, "🔗 Socket Transport: Connected");
          g_socketTransport.Subscribe(g_masterID);
+      }
+   }
+
+   //--- Initialize HTTP Transport (Cloud/Serverless)
+   if(InpCopyMode == COPY_HTTP)
+   {
+      g_httpTransport = new CHttpTransport();
+      g_httpTransport.SetHost(InpRelayHost);   // ใส่ URL เช่น https://copytrade.onrender.com
+      g_httpTransport.SetToken(InpAuthToken);
+      g_httpTransport.SetID(InpSlaveID);
+      g_httpTransport.SetRole(ROLE_SLAVE);
+
+      if(!g_httpTransport.Connect())
+         CTLog(LOG_WARN, "⚠ HTTP Transport: Not connected (will retry)");
+      else
+      {
+         CTLog(LOG_INFO, "🌐 HTTP Transport: Connected to " + InpRelayHost);
+         g_httpTransport.Subscribe(g_masterID);
       }
    }
 
@@ -187,6 +208,13 @@ void OnDeinit(const int reason)
       g_socketTransport = NULL;
    }
 
+   if(g_httpTransport != NULL)
+   {
+      g_httpTransport.Disconnect();
+      delete g_httpTransport;
+      g_httpTransport = NULL;
+   }
+
    if(g_symbolMapper != NULL)
    {
       delete g_symbolMapper;
@@ -223,7 +251,7 @@ void OnTimer()
       }
    }
 
-   //--- Read signals from Socket Transport
+   //--- Read signals from Socket Transport (TCP)
    if(g_socketTransport != NULL)
    {
       if(!g_socketTransport.IsConnected())
@@ -249,6 +277,30 @@ void OnTimer()
             g_lastHeartbeat = now;
             g_socketTransport.SendHeartbeat();
          }
+      }
+   }
+
+   //--- Read signals from HTTP Transport (Cloud/Serverless)
+   if(g_httpTransport != NULL)
+   {
+      if(!g_httpTransport.IsConnected())
+      {
+         g_httpTransport.TryReconnect();
+         if(g_httpTransport.IsConnected())
+            g_httpTransport.Subscribe(g_masterID);
+      }
+      else
+      {
+         TradeSignal httpSignals[];
+         int httpCount = g_httpTransport.ReceiveSignals(httpSignals);
+         for(int i = 0; i < httpCount; i++)
+         {
+            if(httpSignals[i].masterID == g_masterID || g_masterID == "")
+               ProcessSignal(httpSignals[i]);
+         }
+
+         // Heartbeat (built into SendHeartbeat with interval check)
+         g_httpTransport.SendHeartbeat();
       }
    }
 }
@@ -621,7 +673,10 @@ void OnTick()
    if(InpCopyMode == COPY_LOCAL)
       vals[3] = "Local IPC Only";
    else
-      vals[3] = (g_socketTransport != NULL && g_socketTransport.IsConnected()) ? "🟢 Connected" : "🔴 Disconnected";
+      if(g_httpTransport != NULL)
+         vals[3] = g_httpTransport.IsConnected() ? "🟢 HTTP Connected" : "🔴 HTTP Disconnected";
+      else
+         vals[3] = (g_socketTransport != NULL && g_socketTransport.IsConnected()) ? "🟢 Connected" : "🔴 Disconnected";
       
    props[4] = "Signals Rx:";
    vals[4] = IntegerToString(g_signalsReceived);

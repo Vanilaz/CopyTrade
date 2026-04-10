@@ -1,7 +1,7 @@
 //+------------------------------------------------------------------+
 //|                                         CopyTradeMaster.mq5      |
 //|                    Master EA — ตรวจจับ Trade Events & ส่ง Signal  |
-//|                    รองรับ Local (File) + Remote (TCP Socket)      |
+//|                    รองรับ Local (File) + Remote (TCP/HTTP)        |
 //+------------------------------------------------------------------+
 #property copyright "CopyTrade System"
 #property version   "1.00"
@@ -13,6 +13,7 @@
 #include <CopyTrade\JsonHelper.mqh>
 #include <CopyTrade\FileTransport.mqh>
 #include <CopyTrade\SocketTransport.mqh>
+#include <CopyTrade\HttpTransport.mqh>
 #include <CopyTrade\DashboardUI.mqh>
 
 //+------------------------------------------------------------------+
@@ -27,8 +28,9 @@ input ENUM_COPY_MODE InpCopyMode = COPY_BOTH;          // โหมด Copy
 input bool     InpCopyPending    = true;               // Copy Pending Orders
 
 input group "═══════════ Remote Server ═══════════"
-input string   InpRelayHost      = "127.0.0.1";        // Relay Server IP
-input int      InpRelayPort      = 5555;               // Relay Server Port
+input string   InpRelayHost      = "127.0.0.1";        // Relay Server IP (TCP) หรือ URL (HTTP)
+input int      InpRelayPort      = 5555;               // Relay Server Port (TCP only)
+input string   InpAuthToken      = "";                  // Auth Token (สำหรับ security)
 
 input group "═══════════ ขั้นสูง ═══════════"
 input bool     InpSyncExisting   = false;              // Sync position ที่เปิดอยู่ก่อน? (false = ข้าม, true = sync ให้ Slave)
@@ -41,6 +43,7 @@ input ENUM_LOG_LEVEL InpLogLevel = LOG_INFO;           // Log Level
 //+------------------------------------------------------------------+
 CFileTransport    *g_fileTransport;
 CSocketTransport  *g_socketTransport;
+CHttpTransport    *g_httpTransport;
 CDashboardUI      g_ui;
 
 //--- Position tracking
@@ -100,13 +103,13 @@ int OnInit()
       CTLog(LOG_INFO, "📁 File Transport: Ready");
    }
 
-   //--- Initialize Socket Transport (Remote)
+   //--- Initialize Socket Transport (Remote TCP)
    if(InpCopyMode == COPY_REMOTE || InpCopyMode == COPY_BOTH)
    {
       g_socketTransport = new CSocketTransport();
       g_socketTransport.SetHost(InpRelayHost);
       g_socketTransport.SetPort(InpRelayPort);
-      g_socketTransport.SetToken("");
+      g_socketTransport.SetToken(InpAuthToken);
       g_socketTransport.SetID(g_masterID);
       g_socketTransport.SetRole(ROLE_MASTER);
 
@@ -114,6 +117,21 @@ int OnInit()
          CTLog(LOG_WARN, "⚠ Socket Transport: Not connected (will retry)");
       else
          CTLog(LOG_INFO, "🔗 Socket Transport: Connected");
+   }
+
+   //--- Initialize HTTP Transport (Cloud/Serverless)
+   if(InpCopyMode == COPY_HTTP)
+   {
+      g_httpTransport = new CHttpTransport();
+      g_httpTransport.SetHost(InpRelayHost);   // ใส่ URL เช่น https://copytrade.onrender.com
+      g_httpTransport.SetToken(InpAuthToken);
+      g_httpTransport.SetID(g_masterID);
+      g_httpTransport.SetRole(ROLE_MASTER);
+
+      if(!g_httpTransport.Connect())
+         CTLog(LOG_WARN, "⚠ HTTP Transport: Not connected (will retry)");
+      else
+         CTLog(LOG_INFO, "🌐 HTTP Transport: Connected to " + InpRelayHost);
    }
 
    //--- Snapshot current positions
@@ -164,6 +182,13 @@ void OnDeinit(const int reason)
       g_socketTransport.Disconnect();
       delete g_socketTransport;
       g_socketTransport = NULL;
+   }
+
+   if(g_httpTransport != NULL)
+   {
+      g_httpTransport.Disconnect();
+      delete g_httpTransport;
+      g_httpTransport = NULL;
    }
 
    CTLog(LOG_INFO, "Master EA stopped. Total signals sent: " + IntegerToString(g_signalsSent));
@@ -363,13 +388,23 @@ void OnTimer()
 
    //--- Heartbeat
    datetime now = TimeCurrent();
-   if(g_socketTransport != NULL && now - g_lastHeartbeat >= InpHeartbeatSec)
+   if(now - g_lastHeartbeat >= InpHeartbeatSec)
    {
       g_lastHeartbeat = now;
-      if(!g_socketTransport.IsConnected())
-         g_socketTransport.TryReconnect();
-      else
-         g_socketTransport.SendHeartbeat();
+      if(g_socketTransport != NULL)
+      {
+         if(!g_socketTransport.IsConnected())
+            g_socketTransport.TryReconnect();
+         else
+            g_socketTransport.SendHeartbeat();
+      }
+      if(g_httpTransport != NULL)
+      {
+         if(!g_httpTransport.IsConnected())
+            g_httpTransport.TryReconnect();
+         else
+            g_httpTransport.SendHeartbeat();
+      }
    }
 
    //--- Cleanup old files every 30 seconds
@@ -540,6 +575,7 @@ bool BroadcastSignal(const TradeSignal &sig)
 {
    bool fileSent   = false;
    bool socketSent = false;
+   bool httpSent   = false;
 
    //--- File Transport (Local)
    if(g_fileTransport != NULL)
@@ -547,7 +583,7 @@ bool BroadcastSignal(const TradeSignal &sig)
       fileSent = g_fileTransport.WriteSignal(sig);
    }
 
-   //--- Socket Transport (Remote)
+   //--- Socket Transport (Remote TCP)
    if(g_socketTransport != NULL)
    {
       if(g_socketTransport.IsConnected())
@@ -560,14 +596,28 @@ bool BroadcastSignal(const TradeSignal &sig)
       }
    }
 
-   if(fileSent || socketSent)
+   //--- HTTP Transport (Cloud/Serverless)
+   if(g_httpTransport != NULL)
+   {
+      if(g_httpTransport.IsConnected())
+         httpSent = g_httpTransport.SendSignal(sig);
+      else
+      {
+         g_httpTransport.TryReconnect();
+         if(g_httpTransport.IsConnected())
+            httpSent = g_httpTransport.SendSignal(sig);
+      }
+   }
+
+   if(fileSent || socketSent || httpSent)
       g_signalsSent++;
 
    string channels = "";
    if(fileSent)   channels += "File ";
    if(socketSent) channels += "Socket ";
+   if(httpSent)   channels += "HTTP ";
 
-   if(fileSent || socketSent)
+   if(fileSent || socketSent || httpSent)
    {
       CTLog(LOG_DEBUG, "Signal broadcast via: " + channels +
             " Type=" + SignalTypeToString(sig.type) +
@@ -729,7 +779,10 @@ void OnTick()
    if(InpCopyMode == COPY_LOCAL)
       vals[3] = "Local IPC Only";
    else
-      vals[3] = (g_socketTransport != NULL && g_socketTransport.IsConnected()) ? "🟢 Connected" : "🔴 Disconnected";
+      if(g_httpTransport != NULL)
+         vals[3] = g_httpTransport.IsConnected() ? "🟢 HTTP Connected" : "🔴 HTTP Disconnected";
+      else
+         vals[3] = (g_socketTransport != NULL && g_socketTransport.IsConnected()) ? "🟢 Connected" : "🔴 Disconnected";
       
    props[4] = "Last Update:";
    vals[4] = TimeToString(TimeCurrent(), TIME_SECONDS);
