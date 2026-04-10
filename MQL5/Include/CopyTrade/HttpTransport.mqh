@@ -21,7 +21,7 @@
 class CHttpTransport
 {
 private:
-   string            m_baseURL;       // e.g. "https://copytrade.onrender.com"
+   string            m_baseURL;       // e.g. "https://your-server.onrender.com"
    string            m_token;
    string            m_id;
    ENUM_CT_ROLE      m_role;

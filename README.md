@@ -218,7 +218,7 @@ Render.com รองรับ TCP + HTTP, Auto-deploy จาก GitHub, ฟร�
 6. Deploy
 ```
 
-> URL จะได้แบบ `https://copytrade-relay.onrender.com`
+> URL จะได้แบบ `https://your-app-name.onrender.com`
 
 ### วิธีที่ 2: Vercel (Serverless — HTTP Only)
 
@@ -240,14 +240,14 @@ Render.com รองรับ TCP + HTTP, Auto-deploy จาก GitHub, ฟร�
 | Parameter | ค่า |
 |---|---|
 | Copy Mode | `HTTP (Cloud/Serverless)` |
-| Relay Server IP | `https://copytrade-relay.onrender.com` |
+| Relay Server IP | `https://your-app-name.onrender.com` |
 | Auth Token | Token ที่ตั้งไว้ใน ENV |
 
 **Slave EA:**
 | Parameter | ค่า |
 |---|---|
 | Copy Mode | `HTTP (Cloud/Serverless)` |
-| Relay Server IP | `https://copytrade-relay.onrender.com` |
+| Relay Server IP | `https://your-app-name.onrender.com` |
 | Auth Token | Token ที่ตั้งไว้ใน ENV |
 
 > ⚠️ **สำคัญ:** ต้องเพิ่ม URL ใน MT5: `Tools → Options → Expert Advisors → Allow WebRequest for listed URL` แล้วใส่ URL ของ server

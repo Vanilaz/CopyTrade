@@ -159,7 +159,7 @@ int OnInit()
    if(InpCopyMode == COPY_HTTP)
    {
       g_httpTransport = new CHttpTransport();
-      g_httpTransport.SetHost(InpRelayHost);   // ใส่ URL เช่น https://copytrade.onrender.com
+      g_httpTransport.SetHost(InpRelayHost);   // ใส่ URL เช่น https://your-server.onrender.com
       g_httpTransport.SetToken(InpAuthToken);
       g_httpTransport.SetID(InpSlaveID);
       g_httpTransport.SetRole(ROLE_SLAVE);
