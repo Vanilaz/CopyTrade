@@ -173,7 +173,13 @@ export class HttpAdapter {
       if (!this.checkEaAuth(req)) return jsonResponse(res, 401, { ok: false, error: 'Unauthorized' });
       try {
         const body = await parseBody(req);
-        this.heartbeat.execute(body.id as string, (body.role || 'unknown') as string, {
+        const eaId = body.id as string;
+        const eaRole = (body.role || 'unknown') as string;
+        
+        const exists = eaRole === 'master' ? this.accounts.getMaster(eaId) : this.accounts.getSlave(eaId);
+        if (!exists) return jsonResponse(res, 404, { ok: false, error: 'EA not registered' });
+
+        this.heartbeat.execute(eaId, eaRole, {
           balance: body.balance as number, equity: body.equity as number,
           marginLevel: body.marginLevel as number, marginUsed: body.marginUsed as number,
           freeMargin: body.freeMargin as number, floatingPnL: body.floatingPnL as number,
@@ -192,6 +198,11 @@ export class HttpAdapter {
         const msg = await parseBody(req);
         const masterID = (msg.mid || msg.id || '') as string;
         if (!masterID) return jsonResponse(res, 400, { ok: false, error: 'Missing master ID' });
+        
+        if (!this.accounts.getMaster(masterID)) {
+          return jsonResponse(res, 404, { ok: false, error: 'Master not registered' });
+        }
+
         const { routed, seq } = this.signal.execute(masterID, msg as any);
         return jsonResponse(res, 200, { ok: true, routed, seq });
       } catch (e: unknown) {
