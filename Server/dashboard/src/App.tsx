@@ -224,7 +224,7 @@ function App() {
       <main className="flex-1 container mx-auto p-6 md:p-10 mb-24 md:mb-10 max-w-screen-2xl">
         <div className="animate-in">
           {activeTab === 'overview' && <OverviewTab data={data} />}
-          {activeTab === 'performance' && <PerformanceTab data={data.performance} passcode={passcode} />}
+          {activeTab === 'performance' && <PerformanceTab data={data} passcode={passcode} />}
           {activeTab === 'monitor' && <MonitorTab data={data} />}
           {activeTab === 'history' && <HistoryTab data={data.history} />}
         </div>

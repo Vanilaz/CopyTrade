@@ -14,6 +14,7 @@ import type { EquityTracker } from '../domain/services/EquityTracker.js';
 
 export class ProcessHeartbeat {
   private updateTimer: ReturnType<typeof setTimeout> | null = null;
+  private equityTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     private accounts: IAccountStore,
@@ -39,10 +40,12 @@ export class ProcessHeartbeat {
     // 4. Snapshot equity for chart
     this.equityTracker.snapshot(id, data.equity || 0, data.balance || 0);
 
-    // 5. Schedule throttled dashboard broadcast
+    // 5. Schedule throttled dashboard broadcasts
     this.scheduleBroadcast();
+    this.scheduleEquityBroadcast();
   }
 
+  /** Lightweight data: status, perf, sync, risk — every 200ms */
   private scheduleBroadcast(): void {
     if (this.updateTimer) return;
     this.updateTimer = setTimeout(() => {
@@ -51,7 +54,15 @@ export class ProcessHeartbeat {
       this.broadcaster.broadcast('performance', this.perfTracker.getSummaries(this.accounts));
       this.broadcaster.broadcast('sync', this.getSyncFn());
       this.broadcaster.broadcast('risk', this.getRiskFn());
-      this.broadcaster.broadcast('equityHistory', this.equityTracker.getHistory(this.accounts));
     }, 200);
+  }
+
+  /** Heavyweight data: equity chart history — every 1s (separate channel) */
+  private scheduleEquityBroadcast(): void {
+    if (this.equityTimer) return;
+    this.equityTimer = setTimeout(() => {
+      this.equityTimer = null;
+      this.broadcaster.broadcast('equityHistory', this.equityTracker.getHistory(this.accounts));
+    }, 1000);
   }
 }

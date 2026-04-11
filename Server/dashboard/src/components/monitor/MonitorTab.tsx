@@ -31,7 +31,10 @@ export function MonitorTab({ data }: MonitorTabProps) {
             <h3 className="premium-title"><Shield size={14} className="text-accent-success" /> Sync Status Auditor</h3>
           </div>
           <div className="flex-1 p-6">
-            <SyncMonitor slaves={data.performance.filter((a: AccountPerformance) => a.role === 'slave')} />
+            <SyncMonitor 
+              slaves={data.performance.filter((a: AccountPerformance) => a.role === 'slave')} 
+              syncData={data.sync}
+            />
           </div>
         </div>
       </div>
@@ -42,7 +45,10 @@ export function MonitorTab({ data }: MonitorTabProps) {
           <h3 className="premium-title"><Hash size={14} className="text-accent-secondary" /> Risk Concentration Dashboard</h3>
         </div>
         <div className="p-8">
-          <RiskDashboard slaves={data.performance.filter((a: AccountPerformance) => a.role === 'slave')} />
+          <RiskDashboard 
+            slaves={data.performance.filter((a: AccountPerformance) => a.role === 'slave')} 
+            risk={data.risk || []}
+          />
         </div>
       </div>
 

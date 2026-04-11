@@ -70,9 +70,15 @@ export function PositionGrid({ data }: PositionGridProps) {
               </div>
             </td>
             <td className="text-right">
-              <span className="text-[9px] font-black tracking-widest bg-accent-success/10 text-accent-success px-2 py-1 rounded border border-accent-success/20">
-                SYNCED
-              </span>
+              {sig.fillPrice ? (
+                <span className="text-[9px] font-black tracking-widest bg-accent-success/10 text-accent-success px-2 py-1 rounded border border-accent-success/20">
+                  EXECUTED {sig.fillTimeMs ? `(${sig.fillTimeMs}ms)` : ''}
+                </span>
+              ) : (
+                <span className="text-[9px] font-black tracking-widest bg-accent-warning/10 text-accent-warning px-2 py-1 rounded border border-accent-warning/20 animate-pulse">
+                  ROUTING
+                </span>
+              )}
             </td>
           </tr>
         ))}

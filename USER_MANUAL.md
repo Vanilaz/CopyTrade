@@ -163,10 +163,10 @@ Dashboard ใหม่ (v3.0) เป็น **React 19** สไตล์ **Bento 
 
 | แท็บ | เนื้อหา |
 |---|---|
-| **📊 Overview** | ยอดรวม PnL, สถานะ Master/Slave, Margin Level, จำนวน Positions |
-| **📈 Performance** | P&L รายวัน/สัปดาห์/เดือน, Drawdown, Win Rate, Equity Chart |
-| **🔄 Monitor** | Sync สถานะระหว่าง Master↔Slave, Risk exposure ต่อ Symbol |
-| **📋 Trade Log** | Signal ล่าสุดทั้งหมด, Trade History |
+| **📊 Overview** | ยอดรวม PnL, Win Rate ภาพรวม, พอร์ต Top Performer, กราฟ Bar Chart สรุป PnL แยกคู่เงิน |
+| **📈 Performance** | P&L สรุปชาร์ต, ระบบเตือน Daily Drawdown Guard 5%, SVG ป๊อปอัพพฤติกรรมกราฟ, พับดูข้อมูล Exposure |
+| **🔄 Monitor** | Sync Auditor แจ้งเตือนการก๊อปปี้ตกหล่น, บอกสถานะไม้ Routing หรือ Executed ชัดเจน |
+| **📋 History** | ประวัติคำสั่งแบบฉบับตารางบัญชี (Ledger), มีระบบ Search/Filter ดูสถิติการได้กำไรสุทธิ Win Rate |
 
 **การเข้าใช้:** เปิดเบราว์เซอร์ไปที่ `http://localhost:8080/` (หรือ URL ของ Cloud deploy)
 

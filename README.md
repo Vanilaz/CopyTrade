@@ -1,6 +1,6 @@
 # CopyTrade MT5 — ระบบ Copy Trade ข้ามเครื่อง ข้าม Broker (Institutional Grade)
 
-> **Version 3.0.2** — TradingView Experience + Live Neural Relay  
+> **Version 3.0.3** — Prop Firm Analytics + Live Neural Relay  
 > สถาปัตยกรรมใหม่ Hexagonal Pattern, Live Dashboard (1s Fidelity), React 19, Reconnection Loop
 
 ---
@@ -19,6 +19,9 @@
 | ✅ **Safety Net** | ตรวจจับ Position ที่หลุดจาก OnTradeTransaction อัตโนมัติ |
 | ✅ **Smart Sync** | เลือก sync position เดิม หรือ copy เฉพาะไม้ใหม่ |
 | ✅ **Bento Dashboard** | React 19 + Glassmorphism — แสดงสถานะบัญชีแบบ Real-time |
+| ✅ **Prop Firm Analytics** | ระบบคำนวณ Win Rate, Total Realized PnL, PnL by Symbol Bar Chart สดๆ |
+| ✅ **Drawdown Guard** | ระบบแสดง % Drawdown ถอยหลังสู่ 5% ของเงินทุนรายวันแบบ Real-time |
+| ✅ **Sync Auditor** | ติดตามสถานะ Master-Slave ตรวจสอบไม้หาย/สถานะเลียนแบบได้สมบูรณ์แบบระดับ ms |
 | ✅ **Live Streaming** | **TradingView Experience** — กราฟขยับทุก 1 วินาที + เอฟเฟกต์กระพริบตัวเลข |
 | ✅ **Auto-Reconnect** | ตรวจจับและเชื่อมต่อ WebSocket ใหม่ใน 3 วินาที (ไม่ต้องกด Refresh) |
 | ✅ **Cloud Deploy** | Deploy ฟรีบน Render.com — ไม่ต้องเช่า VPS แยก |

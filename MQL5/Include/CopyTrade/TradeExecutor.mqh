@@ -82,13 +82,12 @@ CTradeExecutor::CTradeExecutor()
    m_fixedLot       = 0.1;
    m_riskPercent    = 2.0;
    m_maxRetries     = 3;
-   m_retryDelayMs   = 150;    // ลดจาก 500ms → 150ms เพื่อ retry เร็วขึ้น
+   m_retryDelayMs   = 100;    // ★ v3.0.3: ลดจาก 150ms → 100ms เพื่อ retry เร็วขึ้น
    m_maxSpread      = 30;
    m_slippage       = 20;
    m_matchSlippage  = 30;    // Match mode: ยอมลื่น 30 points (Gold=$0.30, EURUSD=3.0pips)
    m_stalePriceMs   = 2000;  // ถ้า signal เก่าเกิน 2 วินาที ใช้ market แทน
    m_trade.SetDeviationInPoints(m_slippage);
-   // ★ FIX: ไม่ hard-code filling mode — จะ detect อัตโนมัติตอน ExecuteOpen
    m_trade.SetAsyncMode(false);
 }
 
@@ -126,6 +125,13 @@ long CTradeExecutor::ExecuteOpen(const TradeSignal &sig, string slaveSymbol)
    else
       m_trade.SetTypeFilling(ORDER_FILLING_RETURN);
 
+   // ★ v3.0.3: LIMIT_CHASE mode → ไปเรียก ExecuteLimitChase() โดยตรง
+   //   วาง Limit Order ที่ราคา Master เป๊ะๆ รอ fill 3 วินาที ไม่ติดก็ market
+   if(m_execMode == EXEC_LIMIT_CHASE && sig.fillPrice > 0)
+   {
+      return ExecuteLimitChase(sig, slaveSymbol, lots);
+   }
+
    // Get current market price
    double ask = SymbolInfoDouble(slaveSymbol, SYMBOL_ASK);
    double bid = SymbolInfoDouble(slaveSymbol, SYMBOL_BID);
@@ -138,18 +144,37 @@ long CTradeExecutor::ExecuteOpen(const TradeSignal &sig, string slaveSymbol)
 
    double point = SymbolInfoDouble(slaveSymbol, SYMBOL_POINT);
 
+   // ★ v3.0.3: Adaptive Match Slippage — ปรับตัวตามประเภท Symbol
+   //   Gold/XAU = ราคาเคลื่อนเร็วกว่า Forex และ Spread กว้างกว่า ต้องให้ deviation มากขึ้น
+   int adaptiveSlip = m_matchSlippage;
+   string baseSymbol = slaveSymbol;
+   StringToUpper(baseSymbol);
+   
+   if(StringFind(baseSymbol, "XAU") >= 0 || StringFind(baseSymbol, "GOLD") >= 0 ||
+      StringFind(baseSymbol, "XAG") >= 0 || StringFind(baseSymbol, "SILVER") >= 0)
+   {
+      // Metals: ขยาย deviation 2x เพราะ spread กว้าง + ราคาต่าง Broker อาจต่างกัน 20-50 pts
+      adaptiveSlip = m_matchSlippage * 2;
+   }
+   else if(StringFind(baseSymbol, "US30") >= 0 || StringFind(baseSymbol, "NAS") >= 0 ||
+           StringFind(baseSymbol, "SPX") >= 0 || StringFind(baseSymbol, "DAX") >= 0 ||
+           StringFind(baseSymbol, "JP225") >= 0)
+   {
+      // Indices: ขยาย deviation 3x
+      adaptiveSlip = m_matchSlippage * 3;
+   }
+   // Forex ใช้ค่าปกติ (adaptiveSlip = m_matchSlippage)
+
    // ★ FIX: ใช้ TimeCurrent() (broker server time) แทน GetTickCount64()
-   // เพราะ cross-broker คนละเครื่อง GetTickCount64 (system uptime) ต่างกัน → latency ผิดเสมอ
-   // TimeCurrent() มี resolution แค่ 1 วินาที แต่ทั้ง 2 broker sync กัน (ดีกว่าผิดทั้งหมด)
    ulong latencyMs = 99999;
    if(sig.timestamp > 0)
    {
       long diffSec = (long)TimeCurrent() - (long)sig.timestamp;
       if(diffSec >= 0) latencyMs = (ulong)(diffSec * 1000);
-      else latencyMs = 0;  // slave เร็วกว่า master เล็กน้อย → ถือว่า fresh
+      else latencyMs = 0;
    }
 
-   if((m_execMode == EXEC_MATCH_MASTER || m_execMode == EXEC_LIMIT_CHASE) && sig.fillPrice > 0 && point > 0)
+   if(m_execMode == EXEC_MATCH_MASTER && sig.fillPrice > 0 && point > 0)
    {
       double diffPoints = MathAbs(marketPrice - sig.fillPrice) / point;
 
@@ -157,34 +182,33 @@ long CTradeExecutor::ExecuteOpen(const TradeSignal &sig, string slaveSymbol)
       double masterExecPrice = NormalizeDouble(sig.fillPrice, digits);
 
       // ─── Tier 1: ราคาใกล้เคียง → ส่งราคา Master เป๊ะ + deviation แคบ ───
-      if(diffPoints <= m_matchSlippage)
+      if(diffPoints <= adaptiveSlip)
       {
          execPrice = masterExecPrice;
-         m_trade.SetDeviationInPoints(m_matchSlippage);
+         m_trade.SetDeviationInPoints(adaptiveSlip);
          CTLog(LOG_INFO, "MATCH EXACT: Master price " + DoubleToString(execPrice, digits) +
                " (diff=" + DoubleToString(diffPoints, 1) + "pts, dev=" +
-               IntegerToString(m_matchSlippage) + "pts)");
+               IntegerToString(adaptiveSlip) + "pts)");
       }
       // ─── Tier 2: ราคาห่างปานกลาง → ยังลองใช้ราคา Master + deviation กว้าง ───
-      // ★ FIX: ไม่เช็ค latency แล้ว — cross-broker latency วัดไม่ได้แม่น
-      //   ถ้าราคายังอยู่ในช่วง ลองยิง master price เสมอ, requote → fallback market อยู่แล้ว
-      else if(diffPoints <= m_matchSlippage * 5)
+      // ★ v3.0.3: ขยาย Tier 2 จาก 5x เป็น 8x เพื่อรองรับ cross-broker ได้ดีขึ้น
+      else if(diffPoints <= adaptiveSlip * 8)
       {
          execPrice = masterExecPrice;
-         int widerDev = (int)(diffPoints + m_matchSlippage);
+         int widerDev = (int)(diffPoints + adaptiveSlip);
          m_trade.SetDeviationInPoints(widerDev);
          CTLog(LOG_INFO, "MATCH WIDE: Master price " + DoubleToString(execPrice, digits) +
                " (diff=" + DoubleToString(diffPoints, 1) + "pts, dev=" +
                IntegerToString(widerDev) + "pts, latency~" +
                IntegerToString((long)latencyMs) + "ms)");
       }
-      // ─── Tier 3: ราคาห่างมาก แต่ signal ยัง fresh → ยิง market ───
+      // ─── Tier 3: ราคาห่างมาก → ยิง market ───
       else
       {
          execPrice = 0;
          m_trade.SetDeviationInPoints(m_slippage);
          CTLog(LOG_WARN, "MATCH FALLBACK: Price too far (" + DoubleToString(diffPoints, 1) +
-               "pts, >" + IntegerToString(m_matchSlippage * 5) + ") → Market");
+               "pts, >" + IntegerToString(adaptiveSlip * 8) + ") → Market");
       }
    }
    else

@@ -18,7 +18,13 @@ export class DashboardBroadcaster implements IBroadcaster {
   private sseClients: ServerResponse[] = [];
 
   broadcast(type: string, data: unknown): void {
-    const msg = JSON.stringify({ type, data, timestamp: Date.now() });
+    let msg: string;
+    try {
+      msg = JSON.stringify({ type, data, timestamp: Date.now() });
+    } catch (e) {
+      console.error(`[Broadcaster] JSON.stringify failed for "${type}":`, (e as Error).message);
+      return;
+    }
 
     // WebSocket
     this.wsClients = this.wsClients.filter(ws => {

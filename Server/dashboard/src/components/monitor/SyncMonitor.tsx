@@ -1,11 +1,14 @@
 import { CheckCircle2, AlertCircle, Radio, Activity } from 'lucide-react';
-import type { AccountPerformance } from '../../types/api';
+import type { AccountPerformance, SyncStatus } from '../../types/api';
 
 interface SyncMonitorProps {
   slaves: AccountPerformance[];
+  syncData?: SyncStatus;
 }
 
-export function SyncMonitor({ slaves }: SyncMonitorProps) {
+export function SyncMonitor({ slaves, syncData }: SyncMonitorProps) {
+  const isHealthy = syncData ? syncData.slaves.every(s => s.synced) : false;
+
   return (
     <div className="flex flex-col gap-5 h-full">
       <div className="flex-1 flex flex-col gap-4 overflow-y-auto pr-2 custom-scrollbar">
@@ -15,23 +18,37 @@ export function SyncMonitor({ slaves }: SyncMonitorProps) {
             <span className="text-[10px] font-black uppercase tracking-widest">Listening for slave nodes...</span>
           </div>
         ) : (
-          slaves.map((slave) => (
-            <div key={slave.accountId} className="p-4 bg-white/[0.03] border border-white/5 rounded-xl hover:bg-white/[0.05] transition-all group">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="size-8 bg-accent-info/20 rounded-lg flex items-center justify-center text-accent-info">
-                    <Radio size={16} className="group-hover:animate-pulse" />
+          slaves.map((slave) => {
+            const syncInfo = syncData?.slaves.find(s => s.accountId === slave.accountId);
+            const isSynced = syncInfo?.synced ?? true;
+            const missing = syncInfo?.missing ?? 0;
+
+            return (
+              <div key={slave.accountId} className={`p-4 bg-white/[0.03] border ${isSynced ? 'border-white/5 hover:bg-white/[0.05]' : 'border-accent-danger/30 hover:bg-accent-danger/5'} rounded-xl transition-all group`}>
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className={`size-8 rounded-lg flex items-center justify-center ${isSynced ? 'bg-accent-info/20 text-accent-info' : 'bg-accent-danger/20 text-accent-danger'}`}>
+                      {isSynced ? <Radio size={16} className="group-hover:animate-pulse" /> : <AlertCircle size={16} className="animate-pulse" />}
+                    </div>
+                    <div>
+                      <div className="font-mono font-bold text-white text-sm tracking-tight">{slave.accountId}</div>
+                      <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-0.5">
+                        {syncInfo?.subscribedTo ? `Following: ${syncInfo.subscribedTo}` : 'Awaiting Master'}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="font-mono font-bold text-white text-sm tracking-tight">{slave.accountId}</div>
-                    <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-0.5">Slave Instance // 0ms Lag</div>
-                  </div>
+                  {isSynced ? (
+                    <div className="flex items-center gap-2 px-2 py-1 bg-accent-success/10 rounded text-[9px] font-black text-accent-success border border-accent-success/20">
+                      <CheckCircle2 size={10} />
+                      SYNCED
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 px-2 py-1 bg-accent-danger/10 rounded text-[9px] font-black text-accent-danger border border-accent-danger/20">
+                      <AlertCircle size={10} />
+                      MISSING ({missing})
+                    </div>
+                  )}
                 </div>
-                <div className="flex items-center gap-2 px-2 py-1 bg-accent-success/10 rounded text-[9px] font-black text-accent-success border border-accent-success/20">
-                  <CheckCircle2 size={10} />
-                  SYNCED
-                </div>
-              </div>
               
               <div className="grid grid-cols-2 gap-3 mb-4">
                 <div className="bg-black/30 p-2.5 rounded-lg border border-white/5">
@@ -46,25 +63,34 @@ export function SyncMonitor({ slaves }: SyncMonitorProps) {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="size-1.5 rounded-full bg-accent-success shadow-[0_0_8px_var(--color-accent-success)]" />
-                  <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Neural Link Verified</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className={`size-1.5 rounded-full shadow-[0_0_8px_currentColor] ${isSynced ? 'bg-accent-success text-accent-success' : 'bg-accent-danger text-accent-danger'}`} />
+                    <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                      {isSynced 
+                        ? 'Neural Link Verified' 
+                        : (syncInfo?.missingSymbols.length 
+                            ? `Missing: ${syncInfo.missingSymbols.join(', ')}` 
+                            : `${missing} Execution(s) Missing`)}
+                    </span>
+                  </div>
+                  <Activity size={12} className={isSynced ? "text-white/20" : "text-accent-danger/50"} />
                 </div>
-                <Activity size={12} className="text-white/20" />
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
-      <div className="p-4 bg-accent-primary/5 border border-accent-primary/20 rounded-xl">
+      <div className={`p-4 rounded-xl border ${isHealthy ? 'bg-accent-primary/5 border-accent-primary/20' : 'bg-accent-danger/5 border-accent-danger/20'}`}>
         <div className="flex items-center gap-3 mb-2">
-          <AlertCircle size={16} className="text-accent-primary" />
-          <span className="text-[10px] font-black text-accent-primary uppercase tracking-widest">Institutional Audit</span>
+          {isHealthy ? <Activity size={16} className="text-accent-primary" /> : <AlertCircle size={16} className="text-accent-danger" />}
+          <span className={`text-[10px] font-black uppercase tracking-widest ${isHealthy ? 'text-accent-primary' : 'text-accent-danger'}`}>
+            {isHealthy ? 'Institutional Audit' : 'Sync Discrepancy Detected'}
+          </span>
         </div>
         <p className="text-[10px] font-bold text-gray-400 leading-relaxed uppercase tracking-widest opacity-80">
-          Global sync auditor is actively monitoring {slaves.length} execution gateways. Last full sync verify: 1s ago.
+          Global sync auditor is monitoring {slaves.length} execution gateways. Realtime sync state verified.
         </p>
       </div>
     </div>

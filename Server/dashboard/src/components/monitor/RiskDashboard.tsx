@@ -1,17 +1,45 @@
 import { ShieldAlert, Percent, Box, Scale } from 'lucide-react';
-import type { AccountPerformance } from '../../types/api';
+import type { AccountPerformance, RiskMetric } from '../../types/api';
 
 interface RiskDashboardProps {
   slaves: AccountPerformance[];
+  risk: RiskMetric[];
 }
 
-export function RiskDashboard({ slaves }: RiskDashboardProps) {
-  // Aggregate symbol distribution (simulated from performance data for now)
+export function RiskDashboard({ slaves, risk }: RiskDashboardProps) {
+  // Real calculations
+  
+  // 1. Avg Margin Level
+  const accountsWithMargin = risk.filter(r => r.marginLevel > 0);
+  const avgMarginLevel = accountsWithMargin.length > 0 
+    ? accountsWithMargin.reduce((sum, r) => sum + r.marginLevel, 0) / accountsWithMargin.length
+    : 0;
+
+  // 2. Max Drawdown (already tracked in slaves, find the worst one)
+  const maxDd = slaves.length > 0
+    ? Math.max(...slaves.map(s => Number(s.maxDrawdownPct) || 0))
+    : 0;
+
+  // 3. Symbol Concentration and 4. Global Exposure
+  const symbolMap: Record<string, number> = {};
+
+  risk.forEach(r => {
+    Object.entries(r.exposure || {}).forEach(([sym, exp]) => {
+      if (!symbolMap[sym]) symbolMap[sym] = 0;
+      symbolMap[sym] += exp.lots;
+    });
+  });
+
+  const totalLots = Object.values(symbolMap).reduce((sum, val) => sum + val, 0);
+  const topSymbol = Object.keys(symbolMap).length > 0 
+    ? Object.keys(symbolMap).reduce((a, b) => symbolMap[a] > symbolMap[b] ? a : b)
+    : 'NONE';
+
   const riskMetrics = [
-    { label: 'Avg Margin Level', value: '1,240%', icon: <Scale size={14} />, color: 'text-accent-success' },
-    { label: 'Max Drawdown', value: '2.4%', icon: <ShieldAlert size={14} />, color: 'text-accent-warning' },
-    { label: 'Symbol Concentration', value: 'XAUUSD', icon: <Box size={14} />, color: 'text-accent-secondary' },
-    { label: 'Global Exposure', value: '$84.2k', icon: <Percent size={14} />, color: 'text-accent-primary' },
+    { label: 'Avg Margin Level', value: `${avgMarginLevel.toFixed(1)}%`, icon: <Scale size={14} />, color: 'text-accent-success' },
+    { label: 'Max Drawdown', value: `${maxDd.toFixed(2)}%`, icon: <ShieldAlert size={14} />, color: 'text-accent-warning' },
+    { label: 'Symbol Concentration', value: topSymbol, icon: <Box size={14} />, color: 'text-accent-secondary' },
+    { label: 'Global Exposure (Lots)', value: `${totalLots.toFixed(2)}`, icon: <Percent size={14} />, color: 'text-accent-primary' },
   ];
 
   return (
@@ -38,10 +66,18 @@ export function RiskDashboard({ slaves }: RiskDashboardProps) {
           </div>
           
           <div className="space-y-5">
-            <RiskBar label="XAUUSD (Gold)" percent={65} color="bg-accent-warning" />
-            <RiskBar label="EURUSD (Euro)" percent={20} color="bg-accent-primary" />
-            <RiskBar label="BTCUSD (Bitcoin)" percent={10} color="bg-accent-secondary" />
-            <RiskBar label="OTHERS" percent={5} color="bg-gray-600" />
+            {totalLots === 0 ? (
+              <div className="text-gray-500 text-xs italic opacity-50">No active symbol exposure</div>
+            ) : (
+              Object.entries(symbolMap)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 4)
+                .map(([sym, lots], i) => {
+                  const colors = ["bg-accent-warning", "bg-accent-primary", "bg-accent-secondary", "bg-gray-600"];
+                  const percent = ((lots / totalLots) * 100).toFixed(1);
+                  return <RiskBar key={sym} label={sym} percent={percent} color={colors[i] || colors[3]} />;
+                })
+            )}
           </div>
         </div>
 
@@ -69,7 +105,7 @@ export function RiskDashboard({ slaves }: RiskDashboardProps) {
                       <div className="font-mono text-[10px] font-bold text-gray-300">{(slave.floating / (slave.equity || 1) * 100).toFixed(2)}%</div>
                     </div>
                     <div className="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full bg-accent-primary" style={{ width: '45%' }} />
+                      <div className="h-full bg-accent-primary" style={{ width: `${Math.min(100, Math.abs(slave.floating / (slave.equity || 1)) * 100)}%` }} />
                     </div>
                   </div>
                 </div>

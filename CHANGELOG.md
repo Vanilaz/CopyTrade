@@ -1,5 +1,30 @@
 # Changelog
 
+## v3.0.3 — Prop Firm / SaaS Dashboard Upgrade (2026-04-11)
+
+**Institutional Dashboard Analytics (ใหม่!):**
+- **Overview KPIs:** หน้า Overview อัปเกรดเป็นศูนย์ควบคุมกองทุนขนาดย่อม ดึงสถานะ Win Rate ภาพรวมระบบ และ Realized PnL จาก History ได้แบบเรียลไทม์
+- **Symbol Profitability Matrix:** เพิ่ม PnL By Symbol Bar Chart ระดับมืออาชีพ ช่วยแยกให้เห็นชัดเจนว่าเทรดคู่ไหนในตอนนี้สร้าง Net Profit หรือ Loss
+- **Top Performer Recognition:** แสดงโล่ระดับท็อป (Crown) บน Master/Slave ที่ทำกำไรช่วง Floating ได้สูงสุด
+- **Dynamic Trade Ledger:** หน้า History Tab อัปเกรดแบบยกแผง ใส่ KPI Banners ที่สรุป Trade ยอดเยี่ยม, แย่ที่สุด, ลำดับ Win Rate, และยอดรวมสุทธิ พร้อมระบบ Search & Filter อัจฉริยะแบบเรียลไทม์
+- **Daily Drawdown Guard:** หน้า Performance Tab แสดงหลอดสัดส่วน % แบกรับความเสี่ยงรายวันเทียบ Balance หากเกิน 5% ไฟสถานะจะขึ้นสีแดง/เหลือง/เขียว พร้อมปุ่มกดขยาย (Accordion UI) ดูความเสี่ยงรายออเดอร์
+- **SVG In-row Sparklines:** สร้างกราฟเส้น Equity ภายในตารางตั๋ว Performance โชว์มิติของกราฟบัญชีโดยตรงในช่องเดียว
+- **Sync Auditor & Monitor Upgrade:** โละ Mock Status ในหน้า Monitor ออกทั้งหมด! เชื่อม Sync Info ตรวจจับการหลุดซิงก์ (Desynced/Missing Trades) หรือตรวจสอบ Routing Delay (Fill Price vs Pending) จาก Backend ของจริง 100%
+
+**Backend Performance Optimization:**
+- **EquityTracker:** แก้ MAX_HISTORY จาก 2880 (48 นาที) เป็นระบบ Adaptive Downsample (1s สำหรับชั่วโมงล่าสุด, 10s สำหรับข้อมูลเก่า, Hard cap 5000 จุด ~4 ชม.)
+- **DashboardBroadcaster:** เพิ่ม Error Isolation — หาก JSON.stringify ล้มเหลว จะไม่กระทบ broadcast pipeline ทั้งหมด
+- **ProcessHeartbeat:** แยก Equity Chart (ข้อมูลหนัก) ออกจาก Status/Perf/Sync/Risk (ข้อมูลเบา) — ลด bandwidth 80%
+- **Scheduler:** ลด Heartbeat Check จาก 10s → 5s เพื่อตรวจจับ Disconnect เร็วขึ้น 2x
+
+**MQL5 Cross-Broker Price Matching (ใหม่!):**
+- **Adaptive Slippage:** ระบบปรับ Deviation อัตโนมัติตามประเภท Symbol (XAU/GOLD = 2x, US30/NAS = 3x, Forex = ปกติ)
+- **EXEC_LIMIT_CHASE Fix:** แก้โหมด Limit Chase ให้วาง Limit Order ที่ราคา Master เป๊ะจริงๆ แทนที่จะทำเหมือน Match Master
+- **Tier 2 ขยาย:** เพิ่มช่วง Tier 2 จาก 5x → 8x ของ deviation เพื่อรองรับ Cross-Broker ที่ราคาต่างกันมาก
+- **Retry Speed:** ลด retry delay จาก 150ms → 100ms
+
+---
+
 ## v3.0.2 — TradingView Experience & Live Neural Relay (2026-04-11)
 
 **Live Dashboard Overhaul (ใหม่!):**

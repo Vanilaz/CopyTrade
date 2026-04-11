@@ -33,8 +33,8 @@ export class Scheduler {
   constructor(private deps: SchedulerDeps) {}
 
   start(): void {
-    // ─── Heartbeat checker (every 10s) ───
-    this.timers.push(setInterval(() => this.checkHeartbeats(), 10000));
+    // ─── Heartbeat checker (every 5s — faster disconnect detection) ───
+    this.timers.push(setInterval(() => this.checkHeartbeats(), 5000));
 
     // ─── Auto-save performance ───
     this.timers.push(setInterval(() => this.savePerformance(), this.deps.saveInterval));

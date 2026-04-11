@@ -10,8 +10,14 @@ import {
   Terminal,
   Signal,
   CreditCard,
-  Cpu
+  Cpu,
+  Crown,
+  Target,
+  BarChart2,
+  Database
 } from 'lucide-react';
+import { useMemo } from 'react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
 interface OverviewTabProps {
   data: DashboardData | null;
@@ -42,6 +48,28 @@ export function OverviewTab({ data }: OverviewTabProps) {
 
   const floatingTotal = data.performance.reduce((sum: number, a: AccountPerformance) => sum + (a.floating || 0), 0);
   const totalSignals = data.signals?.length || 0;
+  
+  const history = data.history || [];
+  const realizedTotal = history.reduce((sum, t) => sum + (t.profit || 0), 0);
+  const winningTrades = history.filter(t => t.profit > 0).length;
+  const winRate = history.length > 0 ? (winningTrades / history.length) * 100 : 0;
+
+  const masters = data.performance.filter((a: AccountPerformance) => a.role === 'master');
+  const slaves = data.performance.filter((a: AccountPerformance) => a.role === 'slave');
+
+  const topMaster = masters.length > 0 ? masters.reduce((p, c) => (p.floating > c.floating ? p : c)) : null;
+  const topSlave = slaves.length > 0 ? slaves.reduce((p, c) => (p.floating > c.floating ? p : c)) : null;
+
+  const pnlBySymbol = useMemo(() => {
+    const map = new Map<string, number>();
+    history.forEach(t => {
+      map.set(t.symbol, (map.get(t.symbol) || 0) + t.profit);
+    });
+    return Array.from(map.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a,b) => b.value - a.value)
+      .slice(0, 8); // Top 8 symbols
+  }, [history]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -85,18 +113,72 @@ export function OverviewTab({ data }: OverviewTabProps) {
             </div>
           } 
         />
+        <StatCard 
+          icon={<Target className={winRate >= 50 ? 'text-accent-success' : 'text-accent-warning'} />} 
+          title="System Win Rate" 
+          value={<LiveValue value={`${winRate.toFixed(1)}%`} highlight={winRate >= 50 ? 'success' : 'danger'} />} 
+          subtitle={`Based on ${history.length} operations`} 
+        />
+        <StatCard 
+          icon={<Database className={realizedTotal >= 0 ? 'text-accent-success' : 'text-accent-danger'} />} 
+          title="Realized PnL" 
+          value={<LiveValue value={`${realizedTotal >= 0 ? '+' : ''}$${realizedTotal.toFixed(2)}`} highlight={realizedTotal < 0 ? 'danger' : 'success'} />} 
+          subtitle="Closed positions total" 
+          highlight={realizedTotal < 0 ? 'danger' : 'success'}
+        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        {/* Realized PnL by Symbol Chart */}
+        <div className="premium-panel flex flex-col h-[400px]">
+          <div className="premium-panel-header">
+            <h3 className="premium-title"><BarChart2 size={14} className="text-accent-info" /> PnL By Symbol</h3>
+          </div>
+          <div className="flex-1 p-4">
+            {pnlBySymbol.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={pnlBySymbol} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                  <XAxis type="number" 
+                    tick={{ fill: '#6b7280', fontSize: 10, fontWeight: 700 }} 
+                    axisLine={false} tickLine={false} 
+                    tickFormatter={(v) => `$${v}`}
+                  />
+                  <YAxis dataKey="name" type="category" width={80} 
+                    tick={{ fill: '#e5e7eb', fontSize: 10, fontWeight: 900 }} 
+                    axisLine={false} tickLine={false} 
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'rgba(255,255,255,0.05)' }} 
+                    contentStyle={{ backgroundColor: 'rgba(13, 17, 23, 0.9)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                    itemStyle={{ fontSize: '11px', fontWeight: 900 }}
+                    formatter={(val: number) => [`$${val.toFixed(2)}`, 'PnL']}
+                  />
+                  <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={20}>
+                    {pnlBySymbol.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.value >= 0 ? 'var(--color-accent-success)' : 'var(--color-accent-danger)'} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex flex-col items-center justify-center opacity-30 gap-4">
+                <BarChart2 size={48} />
+                <span className="text-xs font-black uppercase tracking-widest text-center">No trades closed<br/>Awaiting data</span>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Master Terminals */}
         <div className="premium-panel flex flex-col h-[400px]">
           <div className="premium-panel-header">
             <h3 className="premium-title"><Terminal size={14} className="text-accent-warning" /> Master Terminals</h3>
-            <span className="status-pill status-pill-online">{data.performance.filter((a: AccountPerformance) => a.role === 'master').length} Active</span>
+            <span className="status-pill status-pill-online">{masters.length} Active</span>
           </div>
-          <div className="premium-body flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-            {data.performance.filter((a: AccountPerformance) => a.role === 'master').map((acct: AccountPerformance) => (
-              <AccountItem key={acct.accountId} acct={acct} />
+          <div className="premium-body flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar">
+            {masters.map((acct: AccountPerformance) => (
+              <AccountItem key={acct.accountId} acct={acct} isTop={topMaster?.accountId === acct.accountId && masters.length > 1} />
             ))}
           </div>
         </div>
@@ -104,18 +186,18 @@ export function OverviewTab({ data }: OverviewTabProps) {
         {/* Slave Terminals */}
         <div className="premium-panel flex flex-col h-[400px]">
           <div className="premium-panel-header">
-            <h3 className="premium-title"><Cpu size={14} className="text-accent-info" /> Slave Terminals</h3>
-            <span className="status-pill status-pill-online">{data.performance.filter((a: AccountPerformance) => a.role === 'slave').length} Active</span>
+            <h3 className="premium-title"><Cpu size={14} className="text-accent-primary" /> Slave Terminals</h3>
+            <span className="status-pill status-pill-online">{slaves.length} Active</span>
           </div>
-          <div className="premium-body flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-            {data.performance.filter((a: AccountPerformance) => a.role === 'slave').length === 0 ? (
+          <div className="premium-body flex-1 overflow-y-auto p-4 flex flex-col gap-4 custom-scrollbar">
+            {slaves.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center opacity-30 gap-4">
                 <CreditCard size={48} />
-                <span className="text-xs font-black uppercase tracking-widest">No slaves identified</span>
+                <span className="text-xs font-black uppercase tracking-widest text-center">No slaves<br/>identified</span>
               </div>
             ) : (
-              data.performance.filter((a: AccountPerformance) => a.role === 'slave').map((acct: AccountPerformance) => (
-                <AccountItem key={acct.accountId} acct={acct} />
+              slaves.map((acct: AccountPerformance) => (
+                <AccountItem key={acct.accountId} acct={acct} isTop={topSlave?.accountId === acct.accountId && slaves.length > 1} />
               ))
             )}
           </div>
@@ -169,17 +251,28 @@ function StatCard({ icon, title, value, subtitle, highlight }: any) {
   );
 }
 
-function AccountItem({ acct }: { acct: any }) {
+function AccountItem({ acct, isTop }: { acct: any, isTop?: boolean }) {
   const isMaster = acct.role === 'master';
   return (
-    <div className="p-4 bg-white/[0.02] border border-white/5 rounded-xl flex items-center justify-between hover:bg-white/[0.04] transition-colors">
-      <div className="flex items-center gap-4">
-        <div className={`size-8 rounded-lg flex items-center justify-center font-black text-[10px] ${isMaster ? 'bg-accent-warning/20 text-accent-warning' : 'bg-accent-info/20 text-accent-info'}`}>
+    <div className={`relative p-4 bg-white/[0.02] border ${isTop ? 'border-accent-success/30 shadow-[0_0_15px_rgba(16,185,129,0.1)]' : 'border-white/5'} rounded-xl flex items-center justify-between hover:bg-white/[0.04] transition-colors overflow-hidden group`}>
+      {isTop && (
+        <div className="absolute top-0 right-0 w-16 h-16 pointer-events-none">
+           <div className="absolute top-2 right-2 text-accent-success opacity-20 group-hover:opacity-100 transition-opacity">
+              <Crown size={24} className="drop-shadow-[0_0_8px_var(--color-accent-success)]" />
+           </div>
+        </div>
+      )}
+      <div className="flex items-center gap-4 z-10">
+        <div className={`size-8 rounded-lg flex items-center justify-center font-black text-[10px] ${isMaster ? 'bg-accent-warning/20 text-accent-warning' : 'bg-accent-primary/20 text-accent-primary'}`}>
           {isMaster ? 'M' : 'S'}
         </div>
         <div>
-          <div className="font-mono font-bold text-white text-sm leading-none mb-1">{acct.accountId}</div>
-          <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest">{acct.role.toUpperCase()} // ACTIVE TERMINAL</div>
+          <div className="font-mono font-bold text-white text-sm leading-none mb-1 flex items-center gap-2">
+            {acct.accountId}
+          </div>
+          <div className={`text-[10px] font-bold uppercase tracking-widest ${isTop ? 'text-accent-success' : 'text-gray-600'}`}>
+            {isTop ? 'TOP PERFORMER' : 'ACTIVE TERMINAL'}
+          </div>
         </div>
       </div>
       <div className="text-right">
