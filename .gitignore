@@ -47,10 +47,12 @@ Server/public/
 *.log
 
 # ═══════════════════════════════════════
-# IDE & Editor
+# IDE & Editor / Tooling
 # ═══════════════════════════════════════
 .vscode/
 .idea/
+.claude/
+.claude
 *.swp
 *.swo
 *~
@@ -73,8 +75,6 @@ Desktop.ini
 # ═══════════════════════════════════════
 QuantTrader/
 *QuantTrader*
-
-.claude
 
 
 data/history.json
