@@ -2,11 +2,11 @@
 # https://render.com/docs/blueprint-spec
 services:
   - type: web
-    name: copytrade-relay
+    name: copytrade-relay-v3
     runtime: node
     region: frankfurt  # EU — ใกล้ London broker servers ที่สุด
     plan: free
-    buildCommand: cd Server/dashboard && npm install && npm run build
+    buildCommand: cd Server/dashboard && npm install --include=dev && npm run build
     startCommand: cd Server/dashboard && npm run start
     envVars:
       - key: PORT
