@@ -1,5 +1,21 @@
 # Changelog
 
+## v3.0.2 — TradingView Experience & Live Neural Relay (2026-04-11)
+
+**Live Dashboard Overhaul (ใหม่!):**
+- **TradingView Experience:** ปรับปรุงความถี่ของข้อมูลพอร์ต (Equity) จาก 10 วินาที เป็น **1 วินาที** (Ultra-high fidelity)
+- **High-Frequency Broadcast:** ลดการหน่วงเวลาการส่งข้อมูล (Broadcast throttle) จาก 1s เหลือ **200ms** (5 ครั้งต่อวินาที)
+- **Visual Ticker Flash:** เพิ่มเอฟเฟกต์กระพริบเขียว/แดง (Flash Up/Down) เมื่อค่ากำไร/ขาดทุนเปลี่ยนในหน้า Dashboard
+- **Auto-Reconnection:** เพิ่มระบบตรวจสอบและเชื่อมต่อ WebSocket ใหม่โดยอัตโนมัติภายใน 3 วินาทีเมื่อการเชื่อมต่อหลุด
+- **Live Pulse Indicators:** เพิ่มแอนิเมชัน Pulsating Live Dot และวงแหวนประมวลผล (Neural Pulse) รอบสถานะระบบ
+- **Instant Signal Injection:** เมื่อมีสัญญาณใหม่ ข้อมูลจะถูกฉีดเข้าสู่ UI ทันทีแบบวินาทีต่อวินาที
+
+**Fixes:**
+- แก้ไขบั๊กจอดำ (TypeError: e.reduce) ในหน้า Monitor โดยการ Flatten ข้อมูล EquityHistory ก่อนส่ง
+- แก้ปัญหา Dashboard ค้างต้องกด F5 เองหลัง Deploy โดยใช้ Reconnection Loop
+
+---
+
 ## v3.0.1 — Clean Architecture Bug Fixes (2026-04-11)
 
 **Critical Fixes:**

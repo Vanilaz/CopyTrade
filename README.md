@@ -1,7 +1,7 @@
 # CopyTrade MT5 — ระบบ Copy Trade ข้ามเครื่อง ข้าม Broker (Institutional Grade)
 
-> **Version 3.0** — Clean Architecture + TypeScript + Unified Project  
-> สถาปัตยกรรมใหม่ Hexagonal Pattern, TypeScript ทั้งระบบ, React 19 Dashboard, Deploy บน Render.com
+> **Version 3.0.2** — TradingView Experience + Live Neural Relay  
+> สถาปัตยกรรมใหม่ Hexagonal Pattern, Live Dashboard (1s Fidelity), React 19, Reconnection Loop
 
 ---
 
@@ -19,11 +19,14 @@
 | ✅ **Safety Net** | ตรวจจับ Position ที่หลุดจาก OnTradeTransaction อัตโนมัติ |
 | ✅ **Smart Sync** | เลือก sync position เดิม หรือ copy เฉพาะไม้ใหม่ |
 | ✅ **Bento Dashboard** | React 19 + Glassmorphism — แสดงสถานะบัญชีแบบ Real-time |
+| ✅ **Live Streaming** | **TradingView Experience** — กราฟขยับทุก 1 วินาที + เอฟเฟกต์กระพริบตัวเลข |
+| ✅ **Auto-Reconnect** | ตรวจจับและเชื่อมต่อ WebSocket ใหม่ใน 3 วินาที (ไม่ต้องกด Refresh) |
 | ✅ **Cloud Deploy** | Deploy ฟรีบน Render.com — ไม่ต้องเช่า VPS แยก |
 | ✅ **HTTP Transport** | รองรับ WebRequest สำหรับ Cloud/Serverless |
 | ✅ **Auth Token** | ป้องกัน Unauthorized Access ทั้ง TCP และ HTTP |
 | ✅ **Clean Architecture** | Hexagonal Pattern — แยก Domain, Application, Adapters ชัดเจน |
 | ✅ **TypeScript** | Type-safe ทั้งระบบ Frontend + Backend |
+| ✅ **Neural Relay** | ระบบกระจายข้อมูลความถี่สูง (Sub-second) ไปยัง Dashboard ทุก Client |
 
 ---
 
