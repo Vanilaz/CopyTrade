@@ -6,8 +6,8 @@ services:
     runtime: node
     region: frankfurt  # EU — ใกล้ London broker servers ที่สุด
     plan: free
-    buildCommand: cd Server/dashboard && npm ci && npm run build
-    startCommand: cd Server/dashboard && npx tsx server/index.ts
+    buildCommand: cd Server/dashboard && npm install && npm run build
+    startCommand: cd Server/dashboard && npm run start
     envVars:
       - key: PORT
         value: 8080
