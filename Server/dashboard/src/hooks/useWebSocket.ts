@@ -108,10 +108,10 @@ export function useWebSocket(passcode: string) {
         ]);
         setState(s => ({
           ...s,
-          sync: sync as SyncStatus,
-          risk: risk as RiskMetric[],
-          equityHistory: eq as EquityHistoryData,
-          positions: pos as PositionsData,
+          sync: (sync && !sync.error) ? sync as SyncStatus : s.sync,
+          risk: Array.isArray(risk) ? risk as RiskMetric[] : s.risk,
+          equityHistory: (eq && !eq.error) ? eq as EquityHistoryData : s.equityHistory,
+          positions: (pos && !pos.error) ? pos as PositionsData : s.positions,
         }));
       } catch { /* silent */ }
     };

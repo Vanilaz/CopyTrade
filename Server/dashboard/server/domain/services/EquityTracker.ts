@@ -8,7 +8,7 @@
 import type { EquitySnapshot } from '../entities/Performance.js';
 import type { IAccountStore } from '../ports/IAccountStore.js';
 
-const SNAPSHOT_INTERVAL = 30000;   // 30 seconds
+const SNAPSHOT_INTERVAL = 1000;    // 1 second (High fidelity)
 const MAX_HISTORY = 2880;          // ~24 hours at 30s intervals
 
 export class EquityTracker {

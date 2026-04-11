@@ -20,7 +20,9 @@ export class ProcessHeartbeat {
     private perfTracker: PerformanceTracker,
     private equityTracker: EquityTracker,
     private broadcaster: IBroadcaster,
-    private getStatusFn: () => unknown,
+    private getStatusFn: () => any,
+    private getSyncFn: () => any,
+    private getRiskFn: () => any,
   ) {}
 
   execute(id: string, role: string, data: HeartbeatData & { cumulativeDW?: number }): void {
@@ -47,6 +49,9 @@ export class ProcessHeartbeat {
       this.updateTimer = null;
       this.broadcaster.broadcast('status', this.getStatusFn());
       this.broadcaster.broadcast('performance', this.perfTracker.getSummaries(this.accounts));
-    }, 1000);
+      this.broadcaster.broadcast('sync', this.getSyncFn());
+      this.broadcaster.broadcast('risk', this.getRiskFn());
+      this.broadcaster.broadcast('equityHistory', this.equityTracker.getHistory(this.accounts));
+    }, 200);
   }
 }

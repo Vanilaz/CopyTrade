@@ -51,6 +51,7 @@ export interface SignalEntry {
   type: string;
   symbol: string;
   lots: number;
+  volume?: number; // Added for compatibility
   price: number;
   fillPrice: number;
   ticket: number;
@@ -66,11 +67,13 @@ export interface AccountPerformance {
   todayPnL: number;
   weekPnL: number;
   monthPnL: number;
+  profit?: number; // Added for UI
   floating: number;
   totalTrades: number;
   winTrades: number;
   lossTrades: number;
-  winRate: string;
+  winRate: string | number;
+  totalSignals?: number; // Added for UI
   maxDrawdown: number;
   maxDrawdownPct: string;
   currentDD: string;
@@ -134,6 +137,12 @@ export interface EquitySnapshot {
   balance: number;
 }
 
+export interface EquityPoint {
+  time: number;
+  accountId: string;
+  equity: number;
+}
+
 export type EquityHistoryData = Record<string, EquitySnapshot[]>;
 
 // ═══ Positions ═══
@@ -145,6 +154,18 @@ export interface AccountPositions {
 
 export type PositionsData = Record<string, AccountPositions>;
 
+// ═══ Historical Trades ═══
+
+export interface HistoricalTrade {
+  ticket: number;
+  symbol: string;
+  type: string;
+  volume: number;
+  price: number;
+  profit: number;
+  time: number;
+}
+
 // ═══ WebSocket Messages ═══
 
 export interface WSMessage {
@@ -154,5 +175,21 @@ export interface WSMessage {
 }
 
 // ═══ App State ═══
+
+export interface DashboardStats {
+  masterCount: number;
+  slaveCount: number;
+  uptime: string;
+}
+
+export interface DashboardData {
+  stats: DashboardStats;
+  performance: AccountPerformance[];
+  signals: SignalEntry[];
+  history: HistoricalTrade[];
+  equityHistory?: EquityPoint[];
+  sync?: SyncStatus;
+  risk?: RiskMetric[];
+}
 
 export type TabId = 'overview' | 'performance' | 'monitor' | 'history';

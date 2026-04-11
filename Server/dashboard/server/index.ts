@@ -63,7 +63,12 @@ const equityTracker = new EquityTracker();
 const dashboard = new GetDashboardData(accounts, signalStore, perfTracker, equityTracker, syncChecker, riskCalculator);
 
 const authenticateEA = new AuthenticateEA(Config.authToken, accounts, perfTracker, broadcaster);
-const processHeartbeat = new ProcessHeartbeat(accounts, perfTracker, equityTracker, broadcaster, () => dashboard.getStatus());
+const processHeartbeat = new ProcessHeartbeat(
+  accounts, perfTracker, equityTracker, broadcaster, 
+  () => dashboard.getStatus(),
+  () => dashboard.getSync(),
+  () => dashboard.getRisk()
+);
 const processSignal = new ProcessSignal(signalStore, signalRouter, broadcaster, null as any); // sender set below
 const resetPerf = new ResetPerformance(perfTracker, accounts, broadcaster, persistence);
 

@@ -186,7 +186,22 @@ export class PerformanceTracker {
 
     this.perfMap.forEach((perf, id) => {
       // Skip if it's not connected and we have the account store
-      if (accounts && !accounts.getMaster(id) && !accounts.getSlave(id)) return;
+      if (accounts) {
+        const m = accounts.getMaster(id);
+        const s = accounts.getSlave(id);
+        if (!m && !s) return;
+        
+        const acct = m || s;
+        if (!acct) return;
+        
+        // Strict connected check (matches GUI)
+        const isHttp = acct.transport === 'http';
+        const connected = isHttp
+          ? (Date.now() - acct.lastHeartbeat < 60000)
+          : (acct.socketHandle != null);
+          
+        if (!connected) return;
+      }
 
       const pnl = perf.dayStartBalance > 0 && perf.lastNetBalance !== undefined
         ? (perf.lastNetBalance - perf.dayStartNetBalance) + perf.floatingPnL

@@ -61,6 +61,9 @@ export class ProcessSignal {
 
     // 5. Broadcast to dashboard
     this.broadcaster.broadcast('signal', signal);
+    if (isCloseSignal(signal)) {
+      this.broadcaster.broadcast('tradeHistory', this.signalStore.getHistory(100));
+    }
 
     return { routed: routedCount, seq: signal.seq };
   }

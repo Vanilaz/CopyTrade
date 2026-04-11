@@ -1,104 +1,92 @@
-import type { PositionsData } from '../../types/api';
-import { getPnLColor } from '../../utils/format';
+import type { DashboardData, SignalEntry } from '../../types/api';
+import { 
+  TrendingUp, 
+  TrendingDown, 
+  Clock, 
+  MapPin,
+  Tag
+} from 'lucide-react';
 
 interface PositionGridProps {
-  data: PositionsData | null;
+  data: DashboardData;
 }
 
 export function PositionGrid({ data }: PositionGridProps) {
-  if (!data) {
+  const activeSignals = data.signals.filter((s: SignalEntry) => s.type === 'market_buy' || s.type === 'market_sell');
+
+  if (activeSignals.length === 0) {
     return (
-      <div className="panel panel-full">
-        <div className="panel-header">
-          <div className="panel-title">📋 Open Positions</div>
+      <div className="flex flex-col items-center justify-center p-20 opacity-30 gap-6">
+        <div className="size-20 bg-white/5 rounded-full flex items-center justify-center">
+          <MapPin size={40} className="text-gray-400" />
         </div>
-        <div className="panel-body">
-          <div className="empty-state"><div className="empty-emoji">📋</div>No position data</div>
+        <div className="text-center">
+          <h3 className="text-lg font-black tracking-widest uppercase text-gray-400">Neutral Exposure</h3>
+          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">No active positions detected in relay</p>
         </div>
       </div>
     );
   }
 
-  const accountIds = Object.keys(data);
-  let totalPositions = 0;
-  accountIds.forEach(id => { totalPositions += (data[id]?.details || []).length; });
-
   return (
-    <div className="panel panel-full">
-      <div className="panel-header">
-        <div className="panel-title">📋 Open Positions</div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          {totalPositions} position{totalPositions !== 1 ? 's' : ''} across {accountIds.length} account{accountIds.length !== 1 ? 's' : ''}
-        </span>
-      </div>
-      <div className="panel-body" style={{ maxHeight: 500 }}>
-        {totalPositions === 0 ? (
-          <div className="empty-state"><div className="empty-emoji">📭</div>No open positions</div>
-        ) : (
-          accountIds.map(id => {
-            const acct = data[id];
-            const details = acct?.details || [];
-            if (details.length === 0) return null;
-
-            return (
-              <div key={id}>
-                {/* Account Header */}
-                <div style={{
-                  padding: '12px 24px',
-                  background: 'rgba(255,255,255,0.02)',
-                  borderBottom: '1px solid var(--border)',
-                  display: 'flex', alignItems: 'center', gap: 10,
-                }}>
-                  <div className={`acct-badge ${acct.role}`} style={{ width: 24, height: 24, fontSize: 10 }}>
-                    {acct.role === 'master' ? 'M' : 'S'}
-                  </div>
-                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13 }}>{id}</span>
-                  <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>({details.length} positions)</span>
-                </div>
-
-                {/* Column Headers */}
-                <div className="position-header">
-                  <span>Symbol</span>
-                  <span>Dir</span>
-                  <span>Lots</span>
-                  <span>Open Price</span>
-                  <span>P&L</span>
-                  <span>Swap</span>
-                </div>
-
-                {/* Position Rows */}
-                {details.map((pos, i) => {
-                  const isBuy = String(pos.type || '').toLowerCase().includes('buy');
-                  const lots = Number(pos.lots) || 0;
-                  const openPrice = Number(pos.openPrice) || 0;
-                  const pnl = Number(pos.pnl) || 0;
-                  const swap = Number(pos.swap) || 0;
-                  return (
-                    <div className="position-row" key={`${id}-${i}`}>
-                      <span style={{ fontWeight: 700, color: '#fff' }}>{pos.symbol}</span>
-                      <span>
-                        <span className={isBuy ? 'buy-tag' : 'sell-tag'}>
-                          {isBuy ? 'BUY' : 'SELL'}
-                        </span>
-                      </span>
-                      <span>{pos.lots !== undefined ? lots.toFixed(2) : '-'}</span>
-                      <span style={{ color: 'var(--text-secondary)' }}>
-                        {pos.openPrice !== undefined ? openPrice.toFixed(5) : '-'}
-                      </span>
-                      <span style={{ fontWeight: 600, color: getPnLColor(pnl) }}>
-                        {pos.pnl !== undefined ? (pnl >= 0 ? '+' : '') + pnl.toFixed(2) : '-'}
-                      </span>
-                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                        {pos.swap !== undefined ? swap.toFixed(2) : '0.00'}
-                      </span>
-                    </div>
-                  );
-                })}
+    <table className="data-matrix border-t border-white/5">
+      <thead>
+        <tr>
+          <th>Signal Node</th>
+          <th>Asset</th>
+          <th>Direction</th>
+          <th>Lots</th>
+          <th>Entry Price</th>
+          <th>Execution Time</th>
+          <th className="text-right">Verification</th>
+        </tr>
+      </thead>
+      <tbody className="font-mono text-xs">
+        {activeSignals.map((sig: SignalEntry, i: number) => (
+          <tr key={i} className="group">
+            <td>
+              <div className="flex items-center gap-3">
+                <div className="size-2 rounded-full bg-accent-primary animate-pulse shadow-[0_0_8px_var(--color-accent-primary)]" />
+                <span className="font-bold text-white">{sig.masterID}</span>
               </div>
-            );
-          })
-        )}
-      </div>
+            </td>
+            <td>
+              <div className="flex items-center gap-2">
+                <Tag size={12} className="text-accent-secondary" />
+                <span className="font-black text-white">{sig.symbol}</span>
+              </div>
+            </td>
+            <td>
+              <DirectionBadge type={sig.type} />
+            </td>
+            <td className="text-white font-bold">{sig.volume || sig.lots}</td>
+            <td className="text-gray-300">
+              {sig.fillPrice ? `$${sig.fillPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : 'PENDING'}
+            </td>
+            <td className="text-gray-500">
+              <div className="flex items-center gap-2">
+                <Clock size={12} />
+                {new Date(sig.time).toLocaleTimeString()}
+              </div>
+            </td>
+            <td className="text-right">
+              <span className="text-[9px] font-black tracking-widest bg-accent-success/10 text-accent-success px-2 py-1 rounded border border-accent-success/20">
+                SYNCED
+              </span>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+function DirectionBadge({ type }: { type: string }) {
+  const isBuy = type.includes('buy');
+  return (
+    <div className={`flex items-center gap-1.5 px-2 py-1 rounded font-black text-[10px] uppercase tracking-widest ${isBuy ? 'text-accent-success bg-accent-success/10' : 'text-accent-danger bg-accent-danger/10'}`}>
+      {isBuy ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+      {isBuy ? 'Long' : 'Short'}
     </div>
   );
 }

@@ -1,144 +1,105 @@
-import { useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import type { EquityHistoryData } from '../../types/api';
+import { 
+  AreaChart, 
+  Area, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  ResponsiveContainer,
+  Legend
+} from 'recharts';
+import type { EquityPoint } from '../../types/api';
 
 interface EquityChartProps {
-  data: EquityHistoryData | null;
+  history: EquityPoint[];
 }
 
-// Account-specific line colors
-const COLORS = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ef4444', '#0ea5e9', '#ec4899', '#14b8a6'];
-
-export function EquityChart({ data }: EquityChartProps) {
-  const { chartData, accountIds } = useMemo(() => {
-    if (!data || Object.keys(data).length === 0) {
-      return { chartData: [], accountIds: [] };
+export function EquityChart({ history }: EquityChartProps) {
+  // Group history by timestamp for multi-line chart
+  const groupedData = history.reduce((acc: any[], curr) => {
+    const time = new Date(curr.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    let point = acc.find(p => p.time === time);
+    if (!point) {
+      point = { time };
+      acc.push(point);
     }
+    point[curr.accountId] = curr.equity;
+    return acc;
+  }, []);
 
-    const ids = Object.keys(data);
-
-    // Collect all timestamps
-    const tsSet = new Set<number>();
-    ids.forEach(id => {
-      (data[id] || []).forEach(snap => tsSet.add(snap.ts));
-    });
-
-    const sortedTs = Array.from(tsSet).sort((a, b) => a - b);
-
-    // Build merged data points
-    const merged = sortedTs.map(ts => {
-      const point: Record<string, number | string> = {
-        ts,
-        time: new Date(ts).toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-      };
-
-      ids.forEach(id => {
-        const snapshots = data[id] || [];
-        // Find nearest snapshot at or before this timestamp
-        let nearest = null;
-        for (let i = snapshots.length - 1; i >= 0; i--) {
-          if (snapshots[i].ts <= ts) { nearest = snapshots[i]; break; }
-        }
-        if (nearest) {
-          point[`eq_${id}`] = nearest.equity;
-          point[`bal_${id}`] = nearest.balance;
-        }
-      });
-
-      return point;
-    });
-
-    // Downsample if too many points
-    const maxPoints = 200;
-    let result = merged;
-    if (merged.length > maxPoints) {
-      const step = Math.ceil(merged.length / maxPoints);
-      result = merged.filter((_, i) => i % step === 0 || i === merged.length - 1);
-    }
-
-    return { chartData: result, accountIds: ids };
-  }, [data]);
+  const accountIds = Array.from(new Set(history.map(h => h.accountId)));
+  const colors = ['#3b82f6', '#c084fc', '#10b981', '#f59e0b', '#ef4444'];
 
   return (
-    <div className="panel panel-full">
-      <div className="panel-header">
-        <div className="panel-title">📈 Equity History (24h)</div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          {accountIds.length} account{accountIds.length !== 1 ? 's' : ''}
-        </span>
+    <div className="w-full h-full min-h-[300px] flex flex-col pt-4 relative">
+      {/* TradingView-style Live Badge */}
+      <div className="absolute top-2 left-6 z-10 chart-live-badge group">
+        <div className="chart-live-dot">
+          <div className="live-pulse-ring text-accent-danger" />
+        </div>
+        <span className="text-[9px] font-black text-white/80 tracking-[0.2em] uppercase">LIVE STREAM</span>
       </div>
-      <div className="chart-container">
-        {chartData.length === 0 ? (
-          <div className="empty-state" style={{ padding: 60 }}>
-            <div className="empty-emoji">📊</div>
-            Collecting equity data... snapshots every 30s
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
-              <XAxis
-                dataKey="time"
-                tick={{ fill: '#64748b', fontSize: 11 }}
-                axisLine={{ stroke: 'rgba(255,255,255,0.08)' }}
-                tickLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tick={{ fill: '#64748b', fontSize: 11 }}
-                axisLine={false}
-                tickLine={false}
-                tickFormatter={(v: number) => `$${(v / 1000).toFixed(1)}k`}
-                width={60}
-              />
-              <Tooltip
-                contentStyle={{
-                  background: 'rgba(15, 17, 21, 0.95)',
-                  border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontFamily: 'JetBrains Mono, monospace',
-                }}
-                labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
-                formatter={(value: number, name: string) => {
-                  const label = name.startsWith('eq_') ? `Equity (${name.slice(3)})` : `Balance (${name.slice(4)})`;
-                  return [`$${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, label];
-                }}
-              />
-              <Legend
-                wrapperStyle={{ fontSize: 11, color: '#94a3b8' }}
-                formatter={(value: string) => {
-                  if (value.startsWith('eq_')) return `Eq: ${value.slice(3)}`;
-                  return `Bal: ${value.slice(4)}`;
-                }}
-              />
-              {accountIds.map((id, idx) => (
-                <Line
-                  key={`eq_${id}`}
-                  type="monotone"
-                  dataKey={`eq_${id}`}
-                  stroke={COLORS[idx % COLORS.length]}
-                  strokeWidth={2}
-                  dot={false}
-                  connectNulls
-                />
-              ))}
-              {accountIds.map((id, idx) => (
-                <Line
-                  key={`bal_${id}`}
-                  type="monotone"
-                  dataKey={`bal_${id}`}
-                  stroke={COLORS[idx % COLORS.length]}
-                  strokeWidth={1}
-                  strokeDasharray="4 4"
-                  dot={false}
-                  connectNulls
-                  opacity={0.5}
-                />
-              ))}
-            </LineChart>
-          </ResponsiveContainer>
-        )}
-      </div>
+
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={groupedData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+          <defs>
+            {accountIds.map((id, index) => (
+              <linearGradient key={id} id={`gradient-${index}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor={colors[index % colors.length]} stopOpacity={0.15}/>
+                <stop offset="95%" stopColor={colors[index % colors.length]} stopOpacity={0}/>
+              </linearGradient>
+            ))}
+          </defs>
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" vertical={false} />
+          <XAxis 
+            dataKey="time" 
+            axisLine={false} 
+            tickLine={false} 
+            tick={{ fill: '#4b5563', fontSize: 10, fontWeight: 700 }}
+            dy={10}
+          />
+          <YAxis 
+            axisLine={false} 
+            tickLine={false} 
+            tick={{ fill: '#4b5563', fontSize: 10, fontWeight: 700 }}
+            domain={['auto', 'auto']}
+            tickFormatter={(value) => `$${(value / 1000).toFixed(2)}k`}
+          />
+          <Tooltip 
+            contentStyle={{ 
+              backgroundColor: 'rgba(13, 17, 23, 0.9)', 
+              borderRadius: '16px', 
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              backdropFilter: 'blur(16px)',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+              padding: '12px 16px'
+            }}
+            itemStyle={{ fontSize: '11px', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.05em' }}
+            labelStyle={{ color: '#9ca3af', fontSize: '10px', marginBottom: '8px', fontWeight: 900, textTransform: 'uppercase' }}
+            cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 1 }}
+          />
+          <Legend 
+            verticalAlign="top" 
+            align="right" 
+            height={36}
+            iconType="circle"
+            formatter={(value) => <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">{value}</span>}
+          />
+          {accountIds.map((id, index) => (
+            <Area
+              key={id}
+              type="monotone"
+              dataKey={id}
+              stroke={colors[index % colors.length]}
+              strokeWidth={2}
+              fillOpacity={1}
+              fill={`url(#gradient-${index})`}
+              animationDuration={300}
+              isAnimationActive={true}
+            />
+          ))}
+        </AreaChart>
+      </ResponsiveContainer>
     </div>
   );
 }

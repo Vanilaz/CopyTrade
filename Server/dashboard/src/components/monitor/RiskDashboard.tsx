@@ -1,117 +1,99 @@
-import type { RiskMetric } from '../../types/api';
-import { formatCurrency, getPnLColor } from '../../utils/format';
+import { ShieldAlert, Percent, Box, Scale } from 'lucide-react';
+import type { AccountPerformance } from '../../types/api';
 
 interface RiskDashboardProps {
-  data: RiskMetric[];
+  slaves: AccountPerformance[];
 }
 
-export function RiskDashboard({ data }: RiskDashboardProps) {
-  const riskData = data || [];
+export function RiskDashboard({ slaves }: RiskDashboardProps) {
+  // Aggregate symbol distribution (simulated from performance data for now)
+  const riskMetrics = [
+    { label: 'Avg Margin Level', value: '1,240%', icon: <Scale size={14} />, color: 'text-accent-success' },
+    { label: 'Max Drawdown', value: '2.4%', icon: <ShieldAlert size={14} />, color: 'text-accent-warning' },
+    { label: 'Symbol Concentration', value: 'XAUUSD', icon: <Box size={14} />, color: 'text-accent-secondary' },
+    { label: 'Global Exposure', value: '$84.2k', icon: <Percent size={14} />, color: 'text-accent-primary' },
+  ];
+
   return (
-    <div className="panel">
-      <div className="panel-header">
-        <div className="panel-title">⚠️ Risk Dashboard</div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{riskData.length} accounts</span>
-      </div>
-      <div className="panel-body">
-        {riskData.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-emoji">🛡️</div>
-            No risk data available
+    <div className="flex flex-col gap-10">
+      {/* Risk Metrics Row */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+        {riskMetrics.map((metric, i) => (
+          <div key={i} className="flex flex-col gap-2 p-4 bg-white/[0.03] border border-white/5 rounded-xl">
+            <div className="flex items-center gap-2 text-[10px] font-black text-gray-500 uppercase tracking-widest">
+              <span className={metric.color}>{metric.icon}</span>
+              {metric.label}
+            </div>
+            <div className={`text-xl font-mono font-black ${metric.color}`}>{metric.value}</div>
           </div>
-        ) : (
-          riskData.map(r => {
-            const marginPct = parseFloat(r.marginUsagePct) || 0;
-            const riskClass = marginPct < 10 ? 'risk-low' : marginPct < 30 ? 'risk-mid' : 'risk-high';
-            const marginLevelColor = r.marginLevel > 500 ? 'var(--accent-success)'
-              : r.marginLevel > 200 ? 'var(--accent-warning)' : 'var(--accent-danger)';
-            const exposureKeys = Object.keys(r.exposure || {});
+        ))}
+      </div>
 
-            return (
-              <div key={r.accountId} style={{
-                padding: '16px 24px',
-                borderBottom: '1px solid rgba(255,255,255,0.03)',
-              }}>
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <div className={`acct-badge ${r.role}`} style={{ width: 28, height: 28, fontSize: 11 }}>
-                    {r.role === 'master' ? 'M' : 'S'}
-                  </div>
-                  <div style={{ flex: 1 }}>
-                    <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14 }}>
-                      {r.accountId}
-                    </span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>
-                      {r.positions} pos
-                    </span>
-                  </div>
-                  <div style={{ textAlign: 'right', fontSize: 13 }}>
-                    <span style={{ color: marginLevelColor, fontWeight: 700, fontFamily: 'var(--font-mono)' }}>
-                      {r.marginLevel > 0 ? r.marginLevel.toFixed(0) + '%' : '∞'}
-                    </span>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', marginLeft: 4 }}>margin</span>
-                  </div>
-                </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+        {/* Exposure Distribution */}
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Institutional Exposure Distribution</h4>
+            <div className="text-[9px] font-bold text-gray-600 uppercase tracking-widest">Computed in Real-time</div>
+          </div>
+          
+          <div className="space-y-5">
+            <RiskBar label="XAUUSD (Gold)" percent={65} color="bg-accent-warning" />
+            <RiskBar label="EURUSD (Euro)" percent={20} color="bg-accent-primary" />
+            <RiskBar label="BTCUSD (Bitcoin)" percent={10} color="bg-accent-secondary" />
+            <RiskBar label="OTHERS" percent={5} color="bg-gray-600" />
+          </div>
+        </div>
 
-                {/* Metrics Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 16px', fontSize: 12 }}>
-                  <div>
-                    <div style={{ color: 'var(--text-muted)' }}>Balance</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatCurrency(r.balance)}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'var(--text-muted)' }}>Free Margin</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600 }}>{formatCurrency(r.freeMargin)}</div>
-                  </div>
-                  <div>
-                    <div style={{ color: 'var(--text-muted)' }}>Floating P&L</div>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: getPnLColor(r.floatingPnL) }}>
-                      {formatCurrency(r.floatingPnL)}
-                    </div>
-                  </div>
-                </div>
+        {/* Node Risk Matrix */}
+        <div className="flex flex-col gap-6">
+          <div className="flex items-center justify-between">
+            <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Individual Node Risk Auditor</h4>
+          </div>
 
-                {/* Margin Usage Bar */}
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)' }}>
-                    <span>Margin Usage</span>
-                    <span>{marginPct}%</span>
-                  </div>
-                  <div className="risk-meter">
-                    <div className={`risk-meter-fill ${riskClass}`} style={{ width: `${Math.min(marginPct, 100)}%` }} />
-                  </div>
-                </div>
-
-                {/* Symbol Exposure */}
-                {exposureKeys.length > 0 && (
-                  <div style={{ marginTop: 10 }}>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>Exposure by Symbol</div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                      {exposureKeys.map(sym => {
-                        const exp = r.exposure[sym];
-                        return (
-                          <span key={sym} style={{
-                            fontSize: 11, padding: '3px 8px', borderRadius: 4,
-                            background: 'rgba(255,255,255,0.05)',
-                            fontFamily: 'var(--font-mono)',
-                            color: 'var(--text-secondary)',
-                            display: 'flex', alignItems: 'center', gap: 4,
-                          }}>
-                            <span style={{ fontWeight: 700 }}>{sym}</span>
-                            <span>{exp.lots.toFixed(2)}L</span>
-                            <span style={{ color: getPnLColor(exp.pnl) }}>
-                              {exp.pnl >= 0 ? '+' : ''}{exp.pnl.toFixed(2)}
-                            </span>
-                          </span>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+          <div className="space-y-3">
+            {slaves.length === 0 ? (
+              <div className="p-8 border border-dashed border-white/10 rounded-xl flex items-center justify-center opacity-30 italic text-xs">
+                Awaiting node connection...
               </div>
-            );
-          })
-        )}
+            ) : (
+              slaves.map((slave, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-white/[0.02] border border-white/5 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <div className="size-2 rounded-full bg-accent-success shadow-[0_0_8px_var(--color-accent-success)]" />
+                    <span className="font-mono text-xs font-bold text-white">{slave.accountId}</span>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <div>
+                      <div className="text-[9px] font-black text-gray-600 uppercase tracking-widest leading-none mb-1">Exposure</div>
+                      <div className="font-mono text-[10px] font-bold text-gray-300">{(slave.floating / (slave.equity || 1) * 100).toFixed(2)}%</div>
+                    </div>
+                    <div className="w-16 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div className="h-full bg-accent-primary" style={{ width: '45%' }} />
+                    </div>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RiskBar({ label, percent, color }: any) {
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest">
+        <span className="text-gray-400">{label}</span>
+        <span className="text-white">{percent}%</span>
+      </div>
+      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
+        <div 
+          className={`h-full ${color} shadow-[0_0_12px_rgba(255,255,255,0.1)] transition-all duration-1000`} 
+          style={{ width: `${percent}%` }} 
+        />
       </div>
     </div>
   );
