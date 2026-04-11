@@ -6,20 +6,21 @@ interface RiskDashboardProps {
 }
 
 export function RiskDashboard({ data }: RiskDashboardProps) {
+  const riskData = data || [];
   return (
     <div className="panel">
       <div className="panel-header">
         <div className="panel-title">⚠️ Risk Dashboard</div>
-        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{data.length} accounts</span>
+        <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{riskData.length} accounts</span>
       </div>
       <div className="panel-body">
-        {data.length === 0 ? (
+        {riskData.length === 0 ? (
           <div className="empty-state">
             <div className="empty-emoji">🛡️</div>
             No risk data available
           </div>
         ) : (
-          data.map(r => {
+          riskData.map(r => {
             const marginPct = parseFloat(r.marginUsagePct) || 0;
             const riskClass = marginPct < 10 ? 'risk-low' : marginPct < 30 ? 'risk-mid' : 'risk-high';
             const marginLevelColor = r.marginLevel > 500 ? 'var(--accent-success)'

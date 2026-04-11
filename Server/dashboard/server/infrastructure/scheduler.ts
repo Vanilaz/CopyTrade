@@ -91,7 +91,8 @@ export class Scheduler {
   private checkDailyReport(): void {
     const now = getBrokerDate(this.deps.brokerTimezone);
     if (now.getHours() === 23 && now.getMinutes() === 59) {
-      const report = this.deps.perfTracker.getDailyReport();
+      const report = this.deps.perfTracker.getDailyReport(this.deps.accounts);
+      if (report.lines.length === 0) return; // Don't send empty reports
       const msg = `📊 <b>CopyTrade Daily Summary</b>
 📅 Date: ${now.toLocaleDateString('en-GB')}
 ━━━━━━━━━━━━━━━━━━━━

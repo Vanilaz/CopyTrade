@@ -180,11 +180,14 @@ export class PerformanceTracker {
   /**
    * Generate daily report data
    */
-  getDailyReport() {
+  getDailyReport(accounts?: IAccountStore) {
     let totalPnl = 0, totalAum = 0, totalWins = 0, totalTradesCount = 0;
     const lines: string[] = [];
 
     this.perfMap.forEach((perf, id) => {
+      // Skip if it's not connected and we have the account store
+      if (accounts && !accounts.getMaster(id) && !accounts.getSlave(id)) return;
+
       const pnl = perf.dayStartBalance > 0 && perf.lastNetBalance !== undefined
         ? (perf.lastNetBalance - perf.dayStartNetBalance) + perf.floatingPnL
         : perf.floatingPnL;
