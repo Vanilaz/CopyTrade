@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "title": "COPYTRADE PRO",
+    "version": "Terminal v3.0",
+    "overview": "Overview",
+    "performance": "Performance",
+    "monitor": "Monitor",
+    "history": "History",
+    "timezone": "ASIA/BANGKOK"
+  },
+  "login": {
+    "title": "INSTITUTIONAL ACCESS",
+    "subtitle": "Authorized Personnel Only",
+    "placeholder": "Enter Gateway Key",
+    "encryption": "Neural Link Encryption Active"
+  },
+  "loading": {
+    "title": "Initializing Neural Relay",
+    "subtitle": "Synchronizing Terminal Streams..."
+  },
+  "overview": {
+    "live_nodes": "Live Nodes",
+    "active_masters": "Active Masters",
+    "active_slaves": "Active Slaves",
+    "uptime": "Relay Uptime",
+    "total_pnl": "Total Pnl",
+    "win_rate": "Win Rate",
+    "total_trades": "Total Trades"
+  },
+  "theme": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  }
+}

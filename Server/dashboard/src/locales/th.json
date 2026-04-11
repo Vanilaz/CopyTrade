@@ -1,0 +1,35 @@
+{
+  "nav": {
+    "title": "COPYTRADE PRO",
+    "version": "เทอร์มินัล v3.0",
+    "overview": "ภาพรวม",
+    "performance": "ผลประกอบการ",
+    "monitor": "ตรวจสอบระบบ",
+    "history": "ประวัติการเทรด",
+    "timezone": "ASIA/BANGKOK"
+  },
+  "login": {
+    "title": "เข้าสู่ระบบระดับสถาบัน",
+    "subtitle": "เฉพาะบุคลากรที่ได้รับอนุญาต",
+    "placeholder": "ป้อนรหัสเกตเวย์",
+    "encryption": "เปิดใช้งานการเข้ารหัส Neural Link"
+  },
+  "loading": {
+    "title": "กำลังเริ่มต้น Neural Relay",
+    "subtitle": "กำลังซิงโครไนซ์สตรีม..."
+  },
+  "overview": {
+    "live_nodes": "โหนดที่ใช้งานอยู่",
+    "active_masters": "มาสเตอร์ (เปิดทำงาน)",
+    "active_slaves": "บัญชีตาม (เปิดทำงาน)",
+    "uptime": "เวลาทำงานของรีเลย์",
+    "total_pnl": "กำไร/ขาดทุนรวม",
+    "win_rate": "อัตราการชนะ",
+    "total_trades": "จำนวนเทรดทั้งหมด"
+  },
+  "theme": {
+    "light": "สว่าง",
+    "dark": "มืด",
+    "system": "ตามระบบ"
+  }
+}
