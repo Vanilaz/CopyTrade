@@ -1,15 +1,74 @@
-# Node.js
+# ═══════════════════════════════════════
+# Dependencies
+# ═══════════════════════════════════════
 node_modules/
 npm-debug.log
-Server/.env
+yarn-error.log
+package-lock.json
 
+# ═══════════════════════════════════════
+# Build Output
+# ═══════════════════════════════════════
+Server/dashboard/dist/
+Server/dashboard/dist-server/
+
+# ═══════════════════════════════════════
+# Environment & Secrets
+# ═══════════════════════════════════════
+Server/.env
+.env
+.env.local
+.env.production
+
+# ═══════════════════════════════════════
+# Runtime Data (persistent — don't commit)
+# ═══════════════════════════════════════
+Server/data/
+
+# ═══════════════════════════════════════
+# Legacy Files (removed in v3.0)
+# ═══════════════════════════════════════
+Server/server.js
+Server/modules/
+Server/package.json
+Server/package-lock.json
+Server/node_modules/
+Server/Dockerfile
+Server/vercel.json
+Server/fix_perf.js
+Server/.env.example
+Server/public/
+
+# ═══════════════════════════════════════
 # MetaTrader 5 / MQL5
+# ═══════════════════════════════════════
 *.ex5
 *.log
-# Exclude QuantTrader completely
-QuantTrader/
-*QuantTrader*
 
+# ═══════════════════════════════════════
+# IDE & Editor
+# ═══════════════════════════════════════
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ═══════════════════════════════════════
+# TypeScript Cache
+# ═══════════════════════════════════════
+*.tsbuildinfo
+.tmp/
+
+# ═══════════════════════════════════════
 # OS Files
+# ═══════════════════════════════════════
 .DS_Store
 Thumbs.db
+Desktop.ini
+
+# ═══════════════════════════════════════
+# Exclude QuantTrader
+# ═══════════════════════════════════════
+QuantTrader/
+*QuantTrader*

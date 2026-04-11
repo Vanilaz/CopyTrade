@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /e/CopyTrade/MQL5/Include/CopyTrade -type f -exec ls -lh {} \\\\;)"
+    ]
+  }
+}
