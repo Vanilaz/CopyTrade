@@ -222,7 +222,7 @@ bool CHttpTransport::SendSignal(const TradeSignal &sig)
 
    if(status == 200) return true;
 
-   if(status == 401)
+   if(status == 401 || status == 404)
    {
       CTLog(LOG_WARN, "HTTP auth expired, reconnecting...");
       m_authenticated = false;
@@ -268,7 +268,7 @@ int CHttpTransport::ReceiveSignals(TradeSignal &signals[])
 
    if(status != 200)
    {
-      if(status == 401) m_authenticated = false;
+      if(status == 401 || status == 404) m_authenticated = false;
       return 0;
    }
 
@@ -361,7 +361,7 @@ bool CHttpTransport::SendHeartbeat()
 
    if(status == 200) return true;
 
-   if(status == 401)
+   if(status == 401 || status == 404)
    {
       CTLog(LOG_WARN, "HTTP heartbeat auth failed, reconnecting...");
       m_authenticated = false;
