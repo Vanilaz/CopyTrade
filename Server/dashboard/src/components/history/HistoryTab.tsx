@@ -31,7 +31,7 @@ export function HistoryTab({ data }: HistoryTabProps) {
               </tr>
             ) : (
               data.map((row, i) => {
-                const typeClass = (row.type || '').split('_')[0].toLowerCase();
+                const typeClass = String(row.type || '').split('_')[0].toLowerCase();
                 return (
                   <tr key={`${row.time}-${i}`}>
                     <td style={{ textAlign: 'left', paddingLeft: 24 }}>{formatTime(row.time)}</td>

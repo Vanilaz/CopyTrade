@@ -44,8 +44,8 @@ export class RiskCalculator {
       positions.forEach(p => {
         const sym = p.symbol || 'UNKNOWN';
         if (!exposure[sym]) exposure[sym] = { lots: 0, pnl: 0, count: 0 };
-        exposure[sym].lots += p.lots || 0;
-        exposure[sym].pnl += p.pnl || 0;
+        exposure[sym].lots += Number(p.lots) || 0;
+        exposure[sym].pnl += Number(p.pnl) || 0;
         exposure[sym].count++;
       });
 

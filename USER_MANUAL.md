@@ -167,4 +167,21 @@ Dashboard ใหม่ (v3.0) เป็น **React 19** สไตล์ **Bento 
 
 ---
 
+## 🧹 บทที่ 9: การทำความสะอาดไฟล์ขยะ (สำหรับผู้ที่อัปเกรดจาก v1/v2 เป็น v3)
+
+เนื่องจากในระบบ CopyTrade v3.0 ได้ปรับโครงสร้างมาเป็น **Clean Architecture** ทำให้ไฟล์เวอร์ชันเก่าหลายๆ ไฟล์หมดความจำเป็น หากท่านอัปเกรดระบบและต้องการล้างไฟล์ขยะที่ไม่ใช้งาน สามารถเปิดโปรแกรม Command Prompt / PowerShell (หรือ Termial ใน VSCode) แล้ว Copy คำสั่งเหล่านี้ไปวางเพื่อลบได้เลยครับ:
+
+**ล้างไฟล์เก่าทั้งหมดในทีเดียว (Windows PowerShell):**
+```powershell
+Remove-Item -Recurse -Force server.js, modules, src, public, package.json, package-lock.json, start-server.bat, tsconfig.json, tsconfig.node.json, vite.config.ts, tailwind.config.js, postcss.config.js, index.html, auto-commit.js -ErrorAction SilentlyContinue
+```
+
+> [!TIP]
+> สำหรับผู้ใช้งานบนเซิร์ฟเวอร์ Linux (Ubuntu/Debian) ใช้คำสั่งนี้:
+> ```bash
+> rm -rf server.js modules src public package.json package-lock.json start-server.bat tsconfig.json tsconfig.node.json vite.config.ts tailwind.config.js postcss.config.js index.html auto-commit.js
+> ```
+
+---
+
 *CopyTrade Pro v3.0 — Clean Architecture, TypeScript, Institutional-Grade Execution*

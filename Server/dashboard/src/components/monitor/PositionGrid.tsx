@@ -68,7 +68,11 @@ export function PositionGrid({ data }: PositionGridProps) {
 
                 {/* Position Rows */}
                 {details.map((pos, i) => {
-                  const isBuy = (pos.type || '').toLowerCase().includes('buy');
+                  const isBuy = String(pos.type || '').toLowerCase().includes('buy');
+                  const lots = Number(pos.lots) || 0;
+                  const openPrice = Number(pos.openPrice) || 0;
+                  const pnl = Number(pos.pnl) || 0;
+                  const swap = Number(pos.swap) || 0;
                   return (
                     <div className="position-row" key={`${id}-${i}`}>
                       <span style={{ fontWeight: 700, color: '#fff' }}>{pos.symbol}</span>
@@ -77,15 +81,15 @@ export function PositionGrid({ data }: PositionGridProps) {
                           {isBuy ? 'BUY' : 'SELL'}
                         </span>
                       </span>
-                      <span>{pos.lots?.toFixed(2) || '-'}</span>
+                      <span>{pos.lots !== undefined ? lots.toFixed(2) : '-'}</span>
                       <span style={{ color: 'var(--text-secondary)' }}>
-                        {pos.openPrice?.toFixed(5) || '-'}
+                        {pos.openPrice !== undefined ? openPrice.toFixed(5) : '-'}
                       </span>
-                      <span style={{ fontWeight: 600, color: getPnLColor(pos.pnl || 0) }}>
-                        {pos.pnl !== undefined ? (pos.pnl >= 0 ? '+' : '') + pos.pnl.toFixed(2) : '-'}
+                      <span style={{ fontWeight: 600, color: getPnLColor(pnl) }}>
+                        {pos.pnl !== undefined ? (pnl >= 0 ? '+' : '') + pnl.toFixed(2) : '-'}
                       </span>
                       <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>
-                        {pos.swap?.toFixed(2) || '0.00'}
+                        {pos.swap !== undefined ? swap.toFixed(2) : '0.00'}
                       </span>
                     </div>
                   );

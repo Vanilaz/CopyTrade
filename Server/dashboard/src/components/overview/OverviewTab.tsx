@@ -106,7 +106,7 @@ export function OverviewTab({ status, signals }: OverviewTabProps) {
               <div className="empty-state"><div className="empty-emoji">📭</div>System idle. Waiting for trade activities.</div>
             ) : (
               [...signals].reverse().slice(0, 100).map((sig, i) => {
-                const typeClass = (sig.type || '').split('_')[0].toLowerCase();
+                const typeClass = String(sig.type || '').split('_')[0].toLowerCase();
                 return (
                   <div className="signal-row" key={`${sig.time}-${i}`}>
                     <div className={`sig-type ${typeClass}`}>{sig.type || 'SYS'}</div>

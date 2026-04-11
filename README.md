@@ -227,12 +227,27 @@ Environment=HTTP_PORT=8080
 WantedBy=multi-user.target
 ```
 
-**Windows (NSSM):**
 ```powershell
 nssm install CopyTradeRelay "C:\Program Files\nodejs\npx.cmd" "tsx server/index.ts"
 nssm set CopyTradeRelay AppDirectory "D:\CopyTrade\Server\dashboard"
 nssm set CopyTradeRelay DisplayName "CopyTrade Relay Server v3.0"
 nssm start CopyTradeRelay
+```
+
+---
+
+## 🧹 การล้างไฟล์เวอร์ชันเก่า (v1/v2 -> v3)
+
+โครงสร้างเดิมจะถูกรวมเข้าสู่หมวด **Clean Architecture** ใน `Server/dashboard` ทั้งหมด หากคุณเคยใช้งานเวอร์ชันก่อนหน้า ให้รันคำสั่งเหล่านี้เพื่อเคลียร์ไฟล์ที่ไม่ได้ใช้:
+
+**Windows PowerShell:**
+```powershell
+Remove-Item -Recurse -Force server.js, modules, src, public, package.json, package-lock.json, start-server.bat, tsconfig.json, tsconfig.node.json, vite.config.ts, tailwind.config.js, postcss.config.js, index.html, auto-commit.js -ErrorAction SilentlyContinue
+```
+
+**Linux / Mac:**
+```bash
+rm -rf server.js modules src public package.json package-lock.json start-server.bat tsconfig.json tsconfig.node.json vite.config.ts tailwind.config.js postcss.config.js index.html auto-commit.js
 ```
 
 ---

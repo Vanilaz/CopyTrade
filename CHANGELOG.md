@@ -1,6 +1,14 @@
 # Changelog
 
-## v2.0 — Cloud Deploy + Security Hardening (2026-04-10)
+## v3.0.1 — Clean Architecture Bug Fixes (2026-04-11)
+
+**Critical Fixes:**
+- **Telegram Daily Report:** ปรับปรุง `PerformanceTracker` และ `scheduler.ts` ให้คัดเลือกเฉพาะ Master/Slave account ที่กำลังออนไลน์อยู่เท่านั้น (ป้องกันการส่งแจ้งเตือน EA ที่ไม่ได้ Connect/โดนลบ)
+- **Monitor Dashboard Crash (จอดำ):** แก้ไข React component `RiskDashboard.tsx` ให้ป้องกันกรณี `data` เป็น null หรือ undefined ก่อน initial WebSocket payload จะส่งข้อมูลมาถึง
+
+---
+
+## v3.0 — Cloud Deploy + Clean Architecture (2026-04-10)
 
 **Cloud Deploy (ใหม่!):**
 - รองรับ Deploy ฟรีบน **Render.com** (แนะนำ) และ **Vercel** (Serverless)
