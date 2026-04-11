@@ -387,7 +387,7 @@ void OnTimer()
    CheckPartialCloses();
 
    //--- Heartbeat
-   datetime now = TimeCurrent();
+   datetime now = TimeLocal();
    if(now - g_lastHeartbeat >= InpHeartbeatSec)
    {
       g_lastHeartbeat = now;

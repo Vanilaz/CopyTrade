@@ -271,7 +271,7 @@ void OnTimer()
          }
 
          // Heartbeat
-         datetime now = TimeCurrent();
+         datetime now = TimeLocal();
          if(now - g_lastHeartbeat >= CT_HEARTBEAT_SEC)
          {
             g_lastHeartbeat = now;
