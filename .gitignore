@@ -6,6 +6,7 @@ npm-debug.log
 yarn-error.log
 package-lock.json
 
+
 # ═══════════════════════════════════════
 # Build Output
 # ═══════════════════════════════════════
@@ -72,3 +73,5 @@ Desktop.ini
 # ═══════════════════════════════════════
 QuantTrader/
 *QuantTrader*
+
+
