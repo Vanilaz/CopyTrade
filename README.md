@@ -1,7 +1,7 @@
 # CopyTrade MT5 — ระบบ Copy Trade ข้ามเครื่อง ข้าม Broker (Institutional Grade)
 
-> **Version 3.0.3** — Prop Firm Analytics + Live Neural Relay  
-> สถาปัตยกรรมใหม่ Hexagonal Pattern, Live Dashboard (1s Fidelity), React 19, Reconnection Loop
+> **Version 3.0.4** — Institutional HUD Architecture + PWA Support  
+> สถาปัตยกรรมใหม่ Neural HUD, Hybrid Console Layout, Progressive Web App (Installable), React 19
 
 ---
 
@@ -22,9 +22,7 @@
 | ✅ **Prop Firm Analytics** | ระบบคำนวณ Win Rate, Total Realized PnL, PnL by Symbol Bar Chart สดๆ |
 | ✅ **Drawdown Guard** | ระบบแสดง % Drawdown ถอยหลังสู่ 5% ของเงินทุนรายวันแบบ Real-time |
 | ✅ **Sync Auditor** | ติดตามสถานะ Master-Slave ตรวจสอบไม้หาย/สถานะเลียนแบบได้สมบูรณ์แบบระดับ ms |
-| ✅ **Live Streaming** | **TradingView Experience** — กราฟขยับทุก 1 วินาที + เอฟเฟกต์กระพริบตัวเลข |
-| ✅ **Auto-Reconnect** | ตรวจจับและเชื่อมต่อ WebSocket ใหม่ใน 3 วินาที (ไม่ต้องกด Refresh) |
-| ✅ **Cloud Deploy** | Deploy ฟรีบน Render.com — ไม่ต้องเช่า VPS แยก |
+| ✅ **✨ ฟีเจอร์ใหม่ระดับ Institutional HUD (v3.0.4):** | **Neural HUD Interface:** หน้าตาโปรแกรมสไตล์ Terminal กึ่งโปร่งใส (Glassmorphism) พร้อมเส้นสแกนและมุมฉาก (Brackets) ระดับมืออาชีพ <br> **PWA Installation:** คุณสามารถกดปุ่ม **"Install App"** บน Address Bar ของ Chrome เพื่อติดตั้ง Dashboard ลงเครื่องเป็นแอปพลิเคชันแยกได้ทันที <br> **Hybrid Console Layout:** แยกส่วนควบคุมระบบ (Topbar) และส่วนจัดการพอร์ต (Sidebar) ออกจากกันอย่างชัดเจน เพื่อประสิทธิภาพสูงสุดในการ Monitor ข้อมูล <br> **TradingView Mode:** กราฟพอร์ตจะขยับทุกๆ 1 วินาที ให้ความรู้สึกเหมือน SITUATION ROOM ระดับโลก <br> **Auto-Reconnect:** ระบบจะเชื่อมต่อใหม่เองภายใน 3 วินาทีหากมีการรีสตาร์ทเซิร์ฟเวอร์ |
 | ✅ **HTTP Transport** | รองรับ WebRequest สำหรับ Cloud/Serverless |
 | ✅ **Auth Token** | ป้องกัน Unauthorized Access ทั้ง TCP และ HTTP |
 | ✅ **Clean Architecture** | Hexagonal Pattern — แยก Domain, Application, Adapters ชัดเจน |
@@ -129,7 +127,7 @@ CopyTrade/
 │   └── SymbolMap.txt                   ← Manual Symbol Mapping
 │
 ├── render.yaml                         ← ★ Render.com one-click deploy
-├── USER_MANUAL.md                      ← คู่มือมือใหม่ฉบับจับมือทำ
+├── USER_MANUAL.md                      ← 📘 คู่มือการติดตั้งและใช้งาน CopyTrade Pro v3.0.4 (ฉบับมือใหม่จับมือทำ)
 └── README.md                           ← ไฟล์นี้
 ```
 
@@ -357,10 +355,9 @@ rm -rf server.js modules src public package.json package-lock.json start-server.
 
 | Version | วันที่ | สรุป |
 |---|---|---|
+| **v3.0.4** | 2026-04-11 | **Institutional HUD Architecture**: Overhaul UI/UX สไตล์ HUD, รองรับ PWA (Install App) |
+| **v3.0.3** | 2026-04-11 | Prop Firm Analytics, Live Neural Relay, Stability Fixes |
 | **v3.0** | 2026-04-11 | Clean Architecture (Hexagonal), TypeScript ทั้งระบบ, Unified Project |
-| **v2.0** | 2026-04-10 | Cloud Deploy (Render/Vercel), HTTP Transport, Security Hardening |
-| **v1.2** | 2026-04-10 | Cross-Broker Price Matching, Dashboard Overhaul |
-| **v1.0** | 2026-04-08 | Initial Release |
 
 ---
 

@@ -190,123 +190,149 @@ function App() {
       <div className="noise-overlay" />
       
       {/* ─── Desktop Sidebar ─── */}
-      <aside className="hidden md:flex flex-col w-56 bg-bg-surface/80 backdrop-blur-3xl border-r border-premium z-50 shrink-0">
-        <div className="p-6">
+      <aside className="hidden md:flex flex-col w-64 bg-bg-surface/90 backdrop-blur-3xl border-r border-premium z-50 shrink-0 relative">
+        {/* Sidebar Background HUD Decor */}
+        <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-primary to-transparent" />
+          <div className="absolute bottom-40 left-0 w-full h-px bg-white/10" />
+        </div>
+
+        <div className="p-8 relative">
           <div className="flex items-center gap-4">
-            <div className="size-10 bg-gradient-to-br from-accent-primary to-accent-secondary rounded-xl flex items-center justify-center shadow-lg shadow-accent-primary/20 shrink-0">
-              <Zap className="text-white size-5 fill-white" />
+            <div className="size-11 bg-gradient-to-br from-accent-primary to-accent-secondary rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(59,130,246,0.4)] animate-pulse shrink-0 border border-white/20">
+              <Zap className="text-white size-6 fill-white" />
             </div>
             <div>
-              <h1 className="text-base font-black tracking-tight leading-none text-text-main">{t('nav.title')}</h1>
-              <p className="text-[9px] font-black tracking-[0.2em] text-accent-primary uppercase mt-1">{t('nav.version')}</p>
+              <h1 className="text-sm font-black tracking-tighter leading-none text-text-main uppercase group-hover:animate-glow">
+                COPYTRADE <span className="text-accent-primary">NEURAL</span>
+              </h1>
+              <p className="text-[10px] font-black tracking-[0.3em] text-gray-500 uppercase mt-1.5 flex items-center gap-1.5 opacity-80">
+                <span className="size-1 bg-accent-primary rounded-full animate-ping" />
+                SYSTEM V3.0
+              </p>
             </div>
           </div>
         </div>
 
-        <div className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto">
-          <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-3 mb-4">Navigation</div>
+        <nav className="flex-1 px-5 py-4 space-y-2 overflow-y-auto custom-scrollbar">
+          <div className="text-[10px] font-black text-gray-600 uppercase tracking-[0.25em] px-4 mb-6 flex items-center gap-2">
+            <div className="w-4 h-px bg-gray-700" />
+            Navigation
+          </div>
           
           {tabs.map(t => (
             <button
               key={t.id}
               onClick={() => setActiveTab(t.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 relative overflow-hidden ${activeTab === t.id ? 'text-text-main bg-white/[0.05] shadow-sm' : 'text-gray-400 hover:text-text-main hover:bg-white/[0.03]'}`}
+              className={`w-full flex items-center gap-4 px-5 py-3.5 rounded-xl text-sm font-bold transition-all duration-500 group relative overflow-hidden ${activeTab === t.id ? 'text-text-main bg-white/[0.04] shadow-inner' : 'text-gray-500 hover:text-text-main hover:bg-white/[0.02]'}`}
             >
               {activeTab === t.id && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent-primary shadow-[0_0_12px_rgba(59,130,246,0.8)]" />
+                <>
+                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-accent-primary shadow-[0_0_15px_rgba(59,130,246,1)]" />
+                  <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-accent-primary/5 to-transparent" />
+                </>
               )}
-              <div className={`relative ${activeTab === t.id ? 'text-accent-primary' : ''}`}>
-                <t.icon size={18} />
+              <div className={`relative transition-transform duration-500 group-hover:scale-110 ${activeTab === t.id ? 'text-accent-primary' : ''}`}>
+                <t.icon size={18} strokeWidth={2.5} />
               </div>
-              <span className="tracking-wide">{t.name}</span>
+              <span className="tracking-tight">{t.name}</span>
             </button>
           ))}
-        </div>
+        </nav>
 
         <div className="p-6">
-          <div className="premium-panel p-4 bg-accent-primary/5 border-accent-primary/10">
-            <p className="text-[10px] font-black text-accent-primary uppercase tracking-[0.2em] mb-1">Neural Node</p>
-            <p className="text-[9px] text-gray-400 font-bold leading-relaxed">System active and monitoring market liquidity.</p>
+          <div className="premium-panel p-5 bg-accent-primary/5 border-accent-primary/10 group cursor-default">
+            <div className="hud-bracket hud-bracket-tl opacity-40" />
+            <div className="hud-bracket hud-bracket-br opacity-40" />
+            <div className="scanning-line opacity-20" />
+            
+            <div className="relative z-10">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-black text-accent-primary uppercase tracking-[0.2em]">Neural Node</p>
+                <div className="size-2 rounded-full bg-accent-primary animate-pulse shadow-[0_0_8px_rgba(59,130,246,0.8)]" />
+              </div>
+              <p className="text-[10px] text-gray-400 font-bold leading-relaxed text-terminal italic">
+                Scanning liquidity... 
+                <br />
+                Latency: 1.2ms
+              </p>
+              <div className="mt-3 h-1 w-full bg-white/[0.03] rounded-full overflow-hidden">
+                <div className="h-full bg-accent-primary w-2/3 animate-pulse" />
+              </div>
+            </div>
           </div>
         </div>
       </aside>
 
-      {/* ─── Mobile Header (Visible only on small screens) ─── */}
-      <header className="md:hidden absolute top-0 left-0 right-0 h-16 bg-bg-surface/80 backdrop-blur-2xl border-b border-premium px-6 flex items-center justify-between z-40">
-        <div className="flex items-center gap-3">
-          <div className="size-8 bg-gradient-to-br from-accent-primary to-accent-secondary rounded-lg flex items-center justify-center">
-            <Zap className="text-white size-4 fill-white" />
-          </div>
-          <div>
-            <h1 className="text-sm font-black tracking-tight leading-none">{t('nav.title')}</h1>
-            <p className="text-[8px] font-black tracking-[0.2em] text-accent-primary uppercase mt-0.5">{connectionStatus}</p>
-          </div>
-        </div>
-
-        {/* Mobile Mini Settings */}
-        <div className="flex gap-2">
-          <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-2 bg-white/[0.05] rounded-lg border border-premium text-gray-400">
-            {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-          </button>
-          <button onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'th' : 'en')} className="p-2 bg-white/[0.05] rounded-lg border border-premium text-gray-400 font-mono text-[10px] font-bold">
-            {i18n.language.toUpperCase()}
-          </button>
-        </div>
-      </header>
-
-      {/* ─── Main Content ─── */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden relative pt-20 pb-24 md:pt-0 md:pb-6 px-6 md:px-0">
-        {/* Desktop Topbar Header */}
-        <header className="hidden md:flex sticky top-0 h-20 bg-bg-base/60 backdrop-blur-xl border-b border-premium z-40 items-center justify-between px-10 mb-8">
-          <div>
-            <h2 className="text-2xl font-black tracking-tight text-text-main">{tabs.find(t => t.id === activeTab)?.name}</h2>
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Real-time Telemetry Dashboard</p>
+      {/* ─── Main Content Area ─── */}
+      <main className="flex-1 flex flex-col min-w-0 bg-bg-base relative">
+        {/* Desktop Header / Topbar */}
+        <header className="hidden md:flex sticky top-0 h-24 bg-bg-base/40 backdrop-blur-2xl border-b border-premium/50 z-40 items-center justify-between px-12 shrink-0">
+          <div className="flex flex-col">
+            <h2 className="text-2xl font-black tracking-tighter text-text-main flex items-center gap-3">
+              {tabs.find(t => t.id === activeTab)?.name}
+              <div className="h-4 w-px bg-premium" />
+              <span className="text-[10px] font-black text-accent-primary uppercase tracking-[0.3em] opacity-80 pt-1">
+                Live Terminal
+              </span>
+            </h2>
           </div>
 
-          <div className="flex items-center gap-8">
-            {/* Live Connection Status */}
-            <div className="flex items-center gap-6 px-6 border-r border-premium">
-              <div className="flex items-center gap-3">
-                <div className={`size-2 rounded-full ${connectionStatus === 'connected' ? 'bg-accent-success shadow-[0_0_8px_#16a34a] animate-pulse' : 'bg-accent-danger shadow-[0_0_8px_#dc2626]'}`} />
-                <div className="flex flex-col">
-                  <span className={`text-[9px] font-black uppercase tracking-widest leading-none ${connectionStatus === 'connected' ? 'text-accent-success' : 'text-accent-danger'}`}>
+          <div className="flex items-center gap-10">
+            {/* Status Cluster */}
+            <div className="flex items-center gap-8 pr-8 border-r border-premium/50">
+              <div className="flex flex-col items-end">
+                <div className="flex items-center gap-3">
+                  <div className={`size-1.5 rounded-full ${connectionStatus === 'connected' ? 'bg-accent-success shadow-[0_0_10px_#22c55e] animate-pulse' : 'bg-accent-danger shadow-[0_0_10px_#ef4444]'}`} />
+                  <span className={`text-[10px] font-black uppercase tracking-[0.2em] animate-glow ${connectionStatus === 'connected' ? 'text-accent-success' : 'text-accent-danger'}`}>
                     {connectionStatus}
                   </span>
-                  <span className="text-[8px] font-bold text-gray-500 uppercase tracking-tighter mt-1">{t('nav.timezone')}</span>
+                </div>
+                <div className="flex items-center gap-1.5 text-[8px] font-black text-gray-500 uppercase tracking-widest mt-1.5 opacity-60">
+                  <Globe size={10} strokeWidth={3} />
+                  <span>{t('nav.timezone')}</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4">
-              {/* Theme Toggle */}
-              <div className="flex items-center bg-black/10 dark:bg-white/[0.03] border border-premium p-1 rounded-xl">
-                <button onClick={() => setTheme('light')} className={`p-2 rounded-lg transition-all ${theme === 'light' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-500 hover:text-text-main'}`} title={t('theme.light')}>
-                  <Sun size={14} />
-                </button>
-                <button onClick={() => setTheme('system')} className={`p-2 rounded-lg transition-all ${theme === 'system' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-500 hover:text-text-main'}`} title={t('theme.system')}>
-                  <Laptop size={14} />
-                </button>
-                <button onClick={() => setTheme('dark')} className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-500 hover:text-text-main'}`} title={t('theme.dark')}>
-                  <Moon size={14} />
-                </button>
+            <div className="flex items-center gap-6">
+              {/* Institutional Switchers */}
+              <div className="flex items-center bg-black/20 dark:bg-white/[0.02] border border-premium p-1.5 rounded-2xl gap-1">
+                {['light', 'system', 'dark'].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setTheme(m as any)}
+                    className={`p-2 rounded-xl transition-all duration-300 ${theme === m ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20 scale-110' : 'text-gray-500 hover:text-text-main'}`}
+                  >
+                    {m === 'light' && <Sun size={15} strokeWidth={2.5} />}
+                    {m === 'system' && <Laptop size={15} strokeWidth={2.5} />}
+                    {m === 'dark' && <Moon size={15} strokeWidth={2.5} />}
+                  </button>
+                ))}
               </div>
 
-              {/* Language Toggle */}
-              <div className="flex items-center bg-black/10 dark:bg-white/[0.03] border border-premium p-1 rounded-xl text-[10px] font-black font-mono">
-                <button onClick={() => i18n.changeLanguage('en')} className={`px-3 py-1.5 rounded-lg transition-all ${i18n.language === 'en' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-500 hover:text-text-main'}`}>
-                  EN
-                </button>
-                <button onClick={() => i18n.changeLanguage('th')} className={`px-3 py-1.5 rounded-lg transition-all ${i18n.language === 'th' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-400 hover:text-text-main'}`}>
-                  TH
-                </button>
+              <div className="flex items-center bg-black/20 dark:bg-white/[0.02] border border-premium p-1.5 rounded-2xl text-[11px] font-black font-mono">
+                {['en', 'th'].map((l) => (
+                  <button
+                    key={l}
+                    onClick={() => i18n.changeLanguage(l)}
+                    className={`px-4 py-2 rounded-xl transition-all duration-300 uppercase ${i18n.language === l ? 'bg-accent-primary text-white shadow-lg shadow-accent-primary/20 scale-110' : 'text-gray-500 hover:text-text-main'}`}
+                  >
+                    {l}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
         </header>
 
-        <div className="px-6 md:px-10 pb-10">
-          <div className="max-w-screen-2xl mx-auto">
-            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+        {/* Scrollable Screen Content */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-12 relative">
+          {/* Subtle Background HUD elements */}
+          <div className="absolute top-0 right-0 w-1/3 h-full bg-accent-primary/[0.01] pointer-events-none" />
+          
+          <div className="max-w-screen-2xl mx-auto space-y-12">
+            <div className="animate-in fade-in slide-in-from-bottom-8 duration-700">
               {activeTab === 'overview' && <OverviewTab data={data} />}
               {activeTab === 'performance' && <PerformanceTab data={data} passcode={passcode} />}
               {activeTab === 'monitor' && <MonitorTab data={data} />}

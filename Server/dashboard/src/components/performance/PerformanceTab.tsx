@@ -129,55 +129,53 @@ export function PerformanceTab({ data, passcode }: PerformanceTabProps) {
   const totalTrades = data.performance.reduce((sum, d) => sum + (d.totalTrades || 0), 0);
 
   return (
-    <div className="flex flex-col gap-8 animate-in">
-      <div className="premium-panel overflow-hidden border-accent-primary/20">
+    <div className="flex flex-col gap-10 animate-in fade-in duration-700">
+      <div className="premium-panel overflow-hidden border-accent-primary/20 group">
+        <div className="hud-bracket hud-bracket-tl" />
+        <div className="hud-bracket hud-bracket-tr" />
+        <div className="scanning-line opacity-10" />
         
-        {/* Toolbar Header */}
-        <div className="p-4 bg-accent-primary/5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/5">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+        {/* Toolbar Header - HUD Style */}
+        <div className="p-5 bg-white/[0.02] flex flex-col xl:flex-row xl:items-center justify-between gap-6 border-b border-white/5 relative z-10">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            <div className="relative group/search w-full sm:w-auto">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-accent-primary opacity-50 group-focus-within/search:opacity-100 transition-opacity" />
               <input 
                 type="text" 
-                placeholder="Search Gateway ID..." 
+                placeholder="PROBE GATEWAY_ID..." 
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-black/40 border border-white/10 rounded-lg pl-9 pr-4 py-2 text-xs font-mono text-white focus:outline-none focus:border-accent-primary/50 transition-colors w-full sm:w-64 z-10"
+                className="bg-black/60 border border-white/10 rounded-lg pl-10 pr-4 py-2.5 text-[10px] font-black tracking-widest text-white focus:outline-none focus:border-accent-primary/40 focus:bg-black/80 transition-all w-full sm:w-72"
               />
             </div>
             
-            <div className="flex items-center bg-black/40 border border-white/10 rounded-lg p-1 z-10">
-              <button 
-                onClick={() => setRoleFilter('all')}
-                className={`px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-colors ${roleFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-500 hover:text-white'}`}
-              >
-                All Nodes
-              </button>
-              <button 
-                onClick={() => setRoleFilter('master')}
-                className={`px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-colors ${roleFilter === 'master' ? 'bg-accent-warning/20 text-accent-warning' : 'text-gray-500 hover:text-white'}`}
-              >
-                Masters
-              </button>
-              <button 
-                onClick={() => setRoleFilter('slave')}
-                className={`px-3 py-1.5 rounded text-[10px] font-black uppercase tracking-widest transition-colors ${roleFilter === 'slave' ? 'bg-accent-info/20 text-accent-info' : 'text-gray-500 hover:text-white'}`}
-              >
-                Slaves
-              </button>
+            <div className="flex items-center bg-black/40 border border-white/5 rounded-xl p-1 gap-1">
+              {[
+                { id: 'all', label: 'ALL_NODES' },
+                { id: 'master', label: 'MASTERS', color: 'text-accent-warning' },
+                { id: 'slave', label: 'SLAVES', color: 'text-accent-primary' }
+              ].map(f => (
+                <button 
+                  key={f.id}
+                  onClick={() => setRoleFilter(f.id as any)}
+                  className={`px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-[0.2em] transition-all ${roleFilter === f.id ? 'bg-accent-primary/10 text-accent-primary border border-accent-primary/20' : 'text-gray-500 hover:text-gray-300'}`}
+                >
+                  {f.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-gray-400 group">
-              <RefreshCw size={14} className="group-active:rotate-180 transition-transform" />
+          <div className="flex items-center gap-4">
+            <button className="size-10 flex items-center justify-center bg-white/[0.03] border border-white/5 hover:bg-white/[0.08] hover:border-white/20 rounded-xl transition-all group/ref">
+              <RefreshCw size={14} className="text-gray-400 group-hover/ref:text-accent-primary group-active/ref:rotate-180 transition-all" />
             </button>
             <button 
               onClick={clearPerformance}
-              className="px-4 h-9 bg-accent-danger/15 text-accent-danger border border-accent-danger/20 rounded-lg text-[10px] font-black uppercase tracking-widest flex items-center gap-2 hover:bg-accent-danger/20 transition-all font-sans"
+              className="h-10 px-5 bg-accent-danger/5 text-accent-danger border border-accent-danger/20 rounded-xl text-[9px] font-black uppercase tracking-[0.2em] flex items-center gap-2.5 hover:bg-accent-danger/20 hover:border-accent-danger/40 transition-all"
             >
-              <Trash2 size={12} />
-              Purge History
+              <Trash2 size={12} className="animate-pulse" />
+              TERMINATE_METRICS
             </button>
           </div>
         </div>
@@ -185,17 +183,44 @@ export function PerformanceTab({ data, passcode }: PerformanceTabProps) {
         <div className="overflow-x-auto pb-4">
           <table className="data-matrix border-none">
             <thead>
-              <tr className="[&>th]:cursor-pointer [&>th]:hover:bg-white/5 [&>th]:transition-colors">
+              <tr className="[&>th]:cursor-pointer [&>th]:hover:bg-white/5 border-b border-white/5">
                 <th onClick={() => requestSort('accountId')}>
-                  <div className="flex items-center gap-2">Identifier {sortConfig?.key === 'accountId' && (sortConfig.dir === 'desc' ? <ChevronDown size={12}/> : <ChevronUp size={12}/>)}</div>
+                  <div className="flex items-center gap-2 group/th">
+                    <span className="group-hover/th:text-accent-primary transition-colors">IDENTIFIER</span>
+                    {sortConfig?.key === 'accountId' && (sortConfig.dir === 'desc' ? <ChevronDown size={10} className="text-accent-primary"/> : <ChevronUp size={10} className="text-accent-primary"/>)}
+                  </div>
                 </th>
-                <th onClick={() => requestSort('role')}>Role</th>
-                <th onClick={() => requestSort('equity')}>Equity (USD)</th>
-                <th onClick={() => requestSort('todayPnL')}>Today PnL</th>
-                <th>Trend</th>
-                <th onClick={() => requestSort('drawdownGuard')}>Daily Guard (5%)</th>
-                <th onClick={() => requestSort('winRate')}>Win Rate</th>
-                <th className="text-right">Actions</th>
+                <th onClick={() => requestSort('role')}>
+                  <div className="flex items-center gap-2 group/th">
+                    <span className="group-hover/th:text-accent-primary">TYPE</span>
+                  </div>
+                </th>
+                <th onClick={() => requestSort('equity')}>
+                  <div className="flex items-center gap-2 group/th">
+                    <span className="group-hover/th:text-accent-primary">EQUITY_VAL</span>
+                  </div>
+                </th>
+                <th onClick={() => requestSort('todayPnL')}>
+                  <div className="flex items-center gap-2 group/th">
+                    <span className="group-hover/th:text-accent-primary">SESSION_PNL</span>
+                  </div>
+                </th>
+                <th className="w-32">
+                  <span>TRENDLINE</span>
+                </th>
+                <th onClick={() => requestSort('drawdownGuard')}>
+                  <div className="flex items-center gap-2 group/th">
+                    <span className="group-hover/th:text-accent-primary">GUARD_LIMIT</span>
+                  </div>
+                </th>
+                <th onClick={() => requestSort('winRate')}>
+                  <div className="flex items-center gap-2 group/th">
+                    <span className="group-hover/th:text-accent-primary transition-colors">WIN_RATE</span>
+                  </div>
+                </th>
+                <th className="text-right">
+                  <span>CTRL</span>
+                </th>
               </tr>
             </thead>
             <tbody className="font-mono text-xs cursor-pointer">
@@ -251,52 +276,80 @@ export function PerformanceTab({ data, passcode }: PerformanceTabProps) {
                     
                     {/* Expandable Sub-Detail Row */}
                     {isExpanded && (
-                      <tr className="bg-black/20 border-b border-white/5">
+                      <tr className="bg-black/60 border-b border-white/5 border-l-2 border-l-accent-primary z-10 relative">
                         <td colSpan={8} className="p-0">
-                          <div className="px-10 py-6 grid grid-cols-1 md:grid-cols-4 gap-6 animate-in fade-in slide-in-from-top-4 duration-200">
-                            {/* Deep Metrics */}
-                            <div className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-lg border-l-2 border-l-accent-primary">
-                              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Global PnL (Week / Month)</span>
-                              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                                <span className={row.weekPnL >= 0 ? "text-accent-success" : "text-accent-danger"}>{row.weekPnL >= 0 ? '+' : ''}{row.weekPnL.toFixed(2)}</span>
-                                <span className="text-gray-600">/</span>
-                                <span className={row.monthPnL >= 0 ? "text-accent-success" : "text-accent-danger"}>{row.monthPnL >= 0 ? '+' : ''}{row.monthPnL.toFixed(2)}</span>
+                          <div className="px-12 py-10 grid grid-cols-1 md:grid-cols-4 gap-10 animate-in fade-in slide-in-from-top-4 duration-300">
+                            {/* Deep Metrics HUD Style */}
+                            <div className="flex flex-col gap-3 group/sub">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest group-hover/sub:text-accent-primary transition-colors">PNL_TIMELINE</span>
+                                <div className="size-1 rounded-full bg-accent-primary opacity-20" />
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <div className="flex flex-col">
+                                   <span className="text-[8px] font-bold text-gray-600 uppercase">Week</span>
+                                   <span className={`text-xs font-black tabular-nums ${row.weekPnL >= 0 ? "text-accent-success" : "text-accent-danger"}`}>
+                                      {row.weekPnL >= 0 ? '+' : ''}{row.weekPnL.toFixed(2)}
+                                   </span>
+                                </div>
+                                <div className="h-6 w-px bg-white/5" />
+                                <div className="flex flex-col">
+                                   <span className="text-[8px] font-bold text-gray-600 uppercase">Month</span>
+                                   <span className={`text-xs font-black tabular-nums ${row.monthPnL >= 0 ? "text-accent-success" : "text-accent-danger"}`}>
+                                      {row.monthPnL >= 0 ? '+' : ''}{row.monthPnL.toFixed(2)}
+                                   </span>
+                                </div>
                               </div>
                             </div>
 
-                            <div className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-lg border-l-2 border-l-accent-warning">
-                              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Margin Auditor</span>
-                              <div className="flex items-center gap-2 text-xs font-bold text-white">
+                            <div className="flex flex-col gap-3 group/sub">
+                              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest group-hover/sub:text-accent-warning transition-colors">AUDIT_TELEMETRY</span>
+                              <div className="flex items-center gap-4 text-[11px] font-black text-white tabular-nums">
                                 {riskData ? (
                                   <>
-                                    <span>Lvl: <span className={riskData.marginLevel < 150 ? 'text-accent-danger' : 'text-accent-success'}>{riskData.marginLevel.toFixed(1)}%</span></span>
-                                    <span className="text-gray-600">|</span>
-                                    <span>Free: ${riskData.freeMargin.toLocaleString()}</span>
+                                    <div className="flex flex-col">
+                                       <span className="text-[8px] font-bold text-gray-600 uppercase">Margin</span>
+                                       <span className={riskData.marginLevel < 150 ? 'text-accent-danger' : 'text-accent-success'}>{riskData.marginLevel.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="h-6 w-px bg-white/5" />
+                                    <div className="flex flex-col">
+                                       <span className="text-[8px] font-bold text-gray-600 uppercase">Free</span>
+                                       <span className="text-accent-primary">${riskData.freeMargin.toLocaleString()}</span>
+                                    </div>
                                   </>
                                 ) : (
-                                  <span className="text-gray-500 italic">Syncing...</span>
+                                  <span className="text-gray-600 italic animate-pulse">SYNCING_NODE...</span>
                                 )}
                               </div>
                             </div>
 
-                            <div className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-lg border-l-2 border-l-accent-secondary">
-                              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Trading Metrics</span>
-                              <div className="flex items-center gap-2 text-xs font-bold text-white">
-                                <span>Trades: {row.totalTrades}</span>
-                                <span className="text-gray-600">|</span>
-                                <span>Max DD: <span className="text-accent-danger">{row.maxDrawdownPct}%</span></span>
+                            <div className="flex flex-col gap-3 group/sub">
+                              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest group-hover/sub:text-accent-secondary transition-colors">ENGINE_METRICS</span>
+                              <div className="flex items-center gap-4 text-[11px] font-black text-white tabular-nums">
+                                <div className="flex flex-col">
+                                   <span className="text-[8px] font-bold text-gray-600 uppercase">Ops</span>
+                                   <span className="text-text-main">{row.totalTrades}</span>
+                                </div>
+                                <div className="h-6 w-px bg-white/5" />
+                                <div className="flex flex-col">
+                                   <span className="text-[8px] font-bold text-gray-600 uppercase">Max_DD</span>
+                                   <span className="text-accent-danger">{row.maxDrawdownPct}%</span>
+                                </div>
                               </div>
                             </div>
 
-                            <div className="flex flex-col gap-2 p-3 bg-white/[0.02] border border-white/5 rounded-lg">
-                              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Symbol Exposure</span>
-                              <div className="flex items-center gap-2 text-[10px] font-bold">
+                            <div className="flex flex-col gap-3 group/sub">
+                              <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">ASSET_EXPOSURE</span>
+                              <div className="flex flex-wrap gap-2">
                                 {riskData && Object.keys(riskData.exposure).length > 0 ? (
                                   Object.entries(riskData.exposure).slice(0, 3).map(([sym, exp], i) => (
-                                    <span key={i} className="bg-white/5 px-2 py-0.5 rounded text-gray-300">{sym} ({exp.lots})</span>
+                                    <div key={i} className="bg-white/[0.03] border border-white/5 px-2.5 py-1 rounded-lg flex items-center gap-2 group/exp">
+                                      <span className="text-[9px] font-black text-white">{sym}</span>
+                                      <span className="text-[9px] font-black text-accent-primary opacity-60 group-hover/exp:opacity-100">{exp.lots}L</span>
+                                    </div>
                                   ))
                                 ) : (
-                                  <span className="text-gray-600">No Active Positions</span>
+                                  <span className="text-gray-700 font-bold uppercase tracking-tighter text-[10px]">No Active Exposure</span>
                                 )}
                               </div>
                             </div>
@@ -320,42 +373,50 @@ export function PerformanceTab({ data, passcode }: PerformanceTabProps) {
         </div>
       </div>
 
-      {/* Capability Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {/* Capability Cards HUD */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         <CapabilityCard 
-          icon={<Target className="text-accent-primary" />} 
-          title="System Profit Factor" 
+          icon={<Target size={20} className="text-accent-primary" />} 
+          title="Profit Factor Matrix" 
           value={profitFactor} 
-          desc="Gross Gain / Gross Loss Ratio"
+          desc="Neural gain/loss coefficients"
+          tag="FACT_0.1"
         />
         <CapabilityCard 
-          icon={<ShieldCheck className="text-accent-success" />} 
-          title="Security Relay" 
+          icon={<ShieldCheck size={20} className="text-accent-success" />} 
+          title="Security Relay Link" 
           value="Institutional" 
-          desc="Neural link encryption status"
+          desc="AES-256 telemetry handshake"
+          tag="SEC_88"
         />
         <CapabilityCard 
-          icon={<Zap className="text-accent-warning" />} 
-          title="Total Executions" 
+          icon={<Zap size={20} className="text-accent-warning" />} 
+          title="Aggregated Ops" 
           value={totalTrades.toLocaleString()} 
-          desc="Aggregated terminal executions"
+          desc="Cumulative cluster executions"
+          tag="LOAD_HI"
         />
       </div>
     </div>
   );
 }
 
-function CapabilityCard({ icon, title, value, desc }: any) {
+function CapabilityCard({ icon, title, value, desc, tag }: any) {
   return (
-    <div className="premium-panel p-5 flex items-start gap-4 hover:border-white/20 transition-all">
-      <div className="size-10 bg-white/[0.03] border border-white/5 rounded-xl flex items-center justify-center shrink-0">
+    <div className="premium-panel p-6 flex items-start gap-6 hover:border-accent-primary/20 transition-all group/cap relative">
+      <div className="hud-bracket hud-bracket-tl opacity-0 group-hover/cap:opacity-100 transition-opacity" />
+      <div className="size-11 bg-white/[0.04] border border-white/5 rounded-2xl flex items-center justify-center shrink-0 group-hover/cap:bg-accent-primary/10 group-hover/cap:border-accent-primary/20 transition-all duration-500">
         {icon}
       </div>
       <div>
-        <div className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em] leading-none mb-1.5">{title}</div>
-        <div className="text-xl font-mono font-black text-white leading-none mb-1">{value}</div>
-        <div className="text-[10px] font-bold text-gray-600 uppercase tracking-widest leading-tight">{desc}</div>
+        <div className="flex items-center gap-3 mb-2">
+           <div className="text-[9px] font-black text-gray-500 uppercase tracking-widest">{title}</div>
+           <div className="px-1.5 py-0.5 bg-white/5 rounded text-[8px] font-black text-gray-700">{tag}</div>
+        </div>
+        <div className="text-terminal text-2xl text-white leading-none mb-2 group-hover/cap:text-accent-primary transition-colors">{value}</div>
+        <div className="text-[9px] font-black text-gray-600 uppercase tracking-[0.1em] leading-tight">{desc}</div>
       </div>
+      <div className="absolute top-2 right-2 size-1 rounded-full bg-accent-primary opacity-10 animate-pulse" />
     </div>
   );
 }

@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.0.4 — Institutional HUD Architecture Overhaul (2026-04-11)
+
+**Neural HUD Design System (ใหม่!):**
+- **HUD Layout Architecture:** ปรับปรุงโครงสร้าง Layout เป็นแบบ Hybrid (Sidebar Command Center + Topbar System Matrix) เพื่อเพิ่มพื้นที่การแสดงผลข้อมูลแบบความหนาแน่นสูง
+- **Premium HUD Elements:** เพิ่มเอฟเฟกต์ **Corner Brackets**, **Scanning Lines**, และ **Mesh Gradient Backgrounds** ทุกแผงวงจรข้อมูล ให้ความรู้สึกเหมือนหน้าจอควบคุมระดับสถาบันการเงิน
+- **Terminal Aesthetics:** ปรับปรุง Typography และ Color Palette เข้าสู่โหมด Cyber-Minimalist เน้นความชัดเจนของตัวเลข (Monospace Focus) และสถานะ Telemetry
+- **Institutional Tabs Overhaul:**
+    - **Overview:** ปรับปรุง Bento Grid ให้มีความเป็น Terminal มากขึ้น พร้อมเอฟเฟกต์ Glow และสถาปัตยกรรมข้อมูลที่ลดความซับซ้อนแต่เพิ่มความแม่นยำ
+    - **Performance:** หน้า Matrix เทรดแบบขยาย (Accordion) รองรับการแสดงผล HUD Decorations และกราฟ Equity ขนาดเล็กในแถว
+    - **Monitor & History:** ปรับปรุงสีสันและแอนิเมชันให้สอดคล้องกับธีม HUD ทั้งระบบ
+
+**Progressive Web App (PWA) Support:**
+- **Installable Dashboard:** รองรับการติดตั้งเป็น Application บนเครื่อง (Desktop/Mobile) ผ่าน `vite-plugin-pwa`
+- **Offline Capability:** มาพร้อม Service Worker เบื้องต้นเพื่อความเสถียรในการโหลดทรัพยากรหน้าเว็บ
+- **Custom Manifest:** ไอคอนและชื่อแอปที่ปรับแต่งมาเพื่อลุคระดับพรีเมียมบนหน้า Home Screen
+
+---
+
 ## v3.0.3 — Prop Firm / SaaS Dashboard Upgrade (2026-04-11)
 
 **Institutional Dashboard Analytics (ใหม่!):**
