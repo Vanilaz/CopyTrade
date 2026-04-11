@@ -1,75 +1,25 @@
-# React + TypeScript + Vite
+# CopyTrade Pro Dashboard — Live Neural Relay
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+แผงควบคุมอัจฉริยะสำหรับระบบ CopyTrade MT5 ที่ใช้สถาปัตยกรรม **Clean Architecture (Hexagonal)** และการส่งข้อมูลแบบ **High-Frequency Live Streaming**
 
-Currently, two official plugins are available:
+## 🚀 เทคโนโลยีที่ใช้
+- **Frontend**: React 19 + TypeScript + Vite + TailwindCSS + Lucide Icons
+- **Backend**: Node.js + TypeScript + WebSocket + TCP Socket
+- **Architecture**: Hexagonal Pattern (Separation of Domain, Application, and Adapters)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ⚡ คุณสมบัติเด่น (Live Features)
+- **Neural Relay Engine**: ระบบกระจายข้อมูลความถี่สูง Broadcast ทุกๆ 200ms
+- **TradingView Fidelity**: เก็บข้อมูล Equity ทุก 1 วินาที เพื่อกราฟที่ลื่นไหลที่สุด
+- **Visual Tickers**: ระบบแจ้งเตือนการเปลี่ยนแปลงราคาด้วยการกระพริบสี (Flash)
+- **Zero-Refresh Workflow**: เชื่อมต่อใหม่เองโดยอัตโนมัติ (Auto-Reconnect) ไม่ต้องกด F5
 
-## React Compiler
+## 🛠️ วิธีการรัน
+1. ติดตั้ง Dependencies: `npm install`
+2. Build ระบบ: `npm run build`
+3. เริ่มต้นทำงาน: `npm start`
 
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## 📂 โครงสร้าง Backend (Server)
+- `server/domain`: แกนกลางของระบบ (Entities, Logic, Ports)
+- `server/application`: ขั้นตอนการทำงาน (Use Cases)
+- `server/adapters`: การเชื่อมต่อภายนอก (TCP, HTTP, WebSocket, File, Telegram)
+- `server/infrastructure`: การตั้งค่าและระบบเสริม (Scheduler, Config)
