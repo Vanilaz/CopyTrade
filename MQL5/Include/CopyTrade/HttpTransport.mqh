@@ -170,7 +170,7 @@ bool CHttpTransport::Connect()
    if(status == 200)
    {
       m_authenticated = true;
-      m_lastHeartbeat = TimeCurrent();
+      m_lastHeartbeat = TimeLocal();
       CTLog(LOG_INFO, "🌐 Connected to Relay Server via HTTP: " + m_baseURL);
       return true;
    }
@@ -196,7 +196,7 @@ bool CHttpTransport::TryReconnect()
       return true;
 
    static datetime s_lastReconnect = 0;
-   datetime now = TimeCurrent();
+   datetime now = TimeLocal();
    if(now - s_lastReconnect < CT_RECONNECT_SEC)
       return false;
 
@@ -346,7 +346,7 @@ int CHttpTransport::ReceiveSignals(TradeSignal &signals[])
 //+------------------------------------------------------------------+
 bool CHttpTransport::SendHeartbeat()
 {
-   datetime now = TimeCurrent();
+   datetime now = TimeLocal();
    if(now - m_lastHeartbeat < CT_HEARTBEAT_SEC)
       return true;
 

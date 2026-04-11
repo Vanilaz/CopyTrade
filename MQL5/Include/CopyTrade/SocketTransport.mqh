@@ -107,7 +107,7 @@ bool CSocketTransport::Connect()
    }
 
    m_state = CONN_AUTHENTICATED;
-   m_lastHeartbeat = TimeCurrent();
+   m_lastHeartbeat = TimeLocal();
    CTLog(LOG_INFO, "🔗 Connected to Relay Server " + m_host + ":" + IntegerToString(m_port));
    return true;
 }
@@ -172,7 +172,7 @@ bool CSocketTransport::TryReconnect()
    if(m_state == CONN_AUTHENTICATED)
       return true;
 
-   datetime now = TimeCurrent();
+   datetime now = TimeLocal();
    if(now - m_lastReconnect < m_reconnectSec)
       return false;
 
@@ -323,7 +323,7 @@ int CSocketTransport::ReceiveSignals(TradeSignal &signals[])
       }
       else if(action == "heartbeat")
       {
-         m_lastHeartbeat = TimeCurrent();
+         m_lastHeartbeat = TimeLocal();
       }
       else if(action == "auth_ok")
       {
@@ -339,7 +339,7 @@ int CSocketTransport::ReceiveSignals(TradeSignal &signals[])
 //+------------------------------------------------------------------+
 bool CSocketTransport::SendHeartbeat()
 {
-   datetime now = TimeCurrent();
+   datetime now = TimeLocal();
    if(now - m_lastHeartbeat < CT_HEARTBEAT_SEC)
       return true;
 
