@@ -190,7 +190,7 @@ function App() {
       <div className="noise-overlay" />
       
       {/* ─── Desktop Sidebar ─── */}
-      <aside className="hidden md:flex flex-col w-60 bg-bg-surface/80 backdrop-blur-3xl border-r border-premium z-50 shrink-0">
+      <aside className="hidden md:flex flex-col w-56 bg-bg-surface/80 backdrop-blur-3xl border-r border-premium z-50 shrink-0">
         <div className="p-6">
           <div className="flex items-center gap-4">
             <div className="size-10 bg-gradient-to-br from-accent-primary to-accent-secondary rounded-xl flex items-center justify-center shadow-lg shadow-accent-primary/20 shrink-0">
@@ -203,8 +203,8 @@ function App() {
           </div>
         </div>
 
-        <div className="flex-1 px-4 py-2 space-y-2 overflow-y-auto">
-          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2 mb-4">Navigation</div>
+        <div className="flex-1 px-4 py-2 space-y-1.5 overflow-y-auto">
+          <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest px-3 mb-4">Navigation</div>
           
           {tabs.map(t => (
             <button
@@ -223,45 +223,10 @@ function App() {
           ))}
         </div>
 
-        <div className="p-5 border-t border-premium flex flex-col gap-5">
-          {/* Connection Status & Timezone */}
-          <div className="flex items-center justify-between px-1">
-            <div className="flex items-center gap-2">
-              <div className={`size-2 rounded-full ${connectionStatus === 'connected' ? 'bg-accent-success shadow-[0_0_8px_#16a34a] animate-pulse' : 'bg-accent-danger shadow-[0_0_8px_#dc2626]'}`} />
-              <span className={`text-[10px] font-black uppercase tracking-widest ${connectionStatus === 'connected' ? 'text-accent-success' : 'text-accent-danger'}`}>
-                {connectionStatus}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 text-[9px] font-bold text-gray-500 uppercase tracking-widest">
-              <Globe size={10} className="text-gray-400" />
-              <span>{t('nav.timezone')}</span>
-            </div>
-          </div>
-
-          {/* Settings Row: Theme & Lang */}
-          <div className="grid grid-cols-2 gap-2">
-            {/* Theme Toggle */}
-            <div className="flex items-center bg-black/10 dark:bg-white/[0.03] border border-premium p-1 rounded-lg">
-              <button onClick={() => setTheme('light')} className={`flex-1 flex justify-center p-1.5 rounded-md transition-colors ${theme === 'light' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm' : 'text-gray-400 hover:text-text-main'}`} title={t('theme.light')}>
-                <Sun size={14} />
-              </button>
-              <button onClick={() => setTheme('system')} className={`flex-1 flex justify-center p-1.5 rounded-md transition-colors ${theme === 'system' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm' : 'text-gray-400 hover:text-text-main'}`} title={t('theme.system')}>
-                <Laptop size={14} />
-              </button>
-              <button onClick={() => setTheme('dark')} className={`flex-1 flex justify-center p-1.5 rounded-md transition-colors ${theme === 'dark' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm' : 'text-gray-400 hover:text-text-main'}`} title={t('theme.dark')}>
-                <Moon size={14} />
-              </button>
-            </div>
-
-            {/* Language Toggle */}
-            <div className="flex items-center bg-black/10 dark:bg-white/[0.03] border border-premium p-1 rounded-lg text-xs font-bold font-mono">
-              <button onClick={() => i18n.changeLanguage('en')} className={`flex-1 py-1 text-center rounded-md transition-colors ${i18n.language === 'en' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm' : 'text-gray-400 hover:text-text-main'}`}>
-                EN
-              </button>
-              <button onClick={() => i18n.changeLanguage('th')} className={`flex-1 py-1 text-center rounded-md transition-colors ${i18n.language === 'th' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm' : 'text-gray-400 hover:text-text-main'}`}>
-                TH
-              </button>
-            </div>
+        <div className="p-6">
+          <div className="premium-panel p-4 bg-accent-primary/5 border-accent-primary/10">
+            <p className="text-[10px] font-black text-accent-primary uppercase tracking-[0.2em] mb-1">Neural Node</p>
+            <p className="text-[9px] text-gray-400 font-bold leading-relaxed">System active and monitoring market liquidity.</p>
           </div>
         </div>
       </aside>
@@ -290,21 +255,63 @@ function App() {
       </header>
 
       {/* ─── Main Content ─── */}
-      <main className="flex-1 overflow-y-auto overflow-x-hidden relative pt-20 pb-24 md:pt-6 md:pb-6 px-6 md:px-10">
-        <div className="h-full max-w-screen-2xl mx-auto">
-          {/* Dashboard Header Info (Desktop) */}
-          <div className="hidden md:flex justify-between items-center mb-8">
-            <div>
-              <h2 className="text-3xl font-black tracking-tight text-text-main">{tabs.find(t => t.id === activeTab)?.name}</h2>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-1">Real-time Telemetry Dashboard</p>
-            </div>
+      <main className="flex-1 overflow-y-auto overflow-x-hidden relative pt-20 pb-24 md:pt-0 md:pb-6 px-6 md:px-0">
+        {/* Desktop Topbar Header */}
+        <header className="hidden md:flex sticky top-0 h-20 bg-bg-base/60 backdrop-blur-xl border-b border-premium z-40 items-center justify-between px-10 mb-8">
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-text-main">{tabs.find(t => t.id === activeTab)?.name}</h2>
+            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-1">Real-time Telemetry Dashboard</p>
           </div>
 
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {activeTab === 'overview' && <OverviewTab data={data} />}
-            {activeTab === 'performance' && <PerformanceTab data={data} passcode={passcode} />}
-            {activeTab === 'monitor' && <MonitorTab data={data} />}
-            {activeTab === 'history' && <HistoryTab data={data.history} />}
+          <div className="flex items-center gap-8">
+            {/* Live Connection Status */}
+            <div className="flex items-center gap-6 px-6 border-r border-premium">
+              <div className="flex items-center gap-3">
+                <div className={`size-2 rounded-full ${connectionStatus === 'connected' ? 'bg-accent-success shadow-[0_0_8px_#16a34a] animate-pulse' : 'bg-accent-danger shadow-[0_0_8px_#dc2626]'}`} />
+                <div className="flex flex-col">
+                  <span className={`text-[9px] font-black uppercase tracking-widest leading-none ${connectionStatus === 'connected' ? 'text-accent-success' : 'text-accent-danger'}`}>
+                    {connectionStatus}
+                  </span>
+                  <span className="text-[8px] font-bold text-gray-500 uppercase tracking-tighter mt-1">{t('nav.timezone')}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4">
+              {/* Theme Toggle */}
+              <div className="flex items-center bg-black/10 dark:bg-white/[0.03] border border-premium p-1 rounded-xl">
+                <button onClick={() => setTheme('light')} className={`p-2 rounded-lg transition-all ${theme === 'light' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-500 hover:text-text-main'}`} title={t('theme.light')}>
+                  <Sun size={14} />
+                </button>
+                <button onClick={() => setTheme('system')} className={`p-2 rounded-lg transition-all ${theme === 'system' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-500 hover:text-text-main'}`} title={t('theme.system')}>
+                  <Laptop size={14} />
+                </button>
+                <button onClick={() => setTheme('dark')} className={`p-2 rounded-lg transition-all ${theme === 'dark' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-500 hover:text-text-main'}`} title={t('theme.dark')}>
+                  <Moon size={14} />
+                </button>
+              </div>
+
+              {/* Language Toggle */}
+              <div className="flex items-center bg-black/10 dark:bg-white/[0.03] border border-premium p-1 rounded-xl text-[10px] font-black font-mono">
+                <button onClick={() => i18n.changeLanguage('en')} className={`px-3 py-1.5 rounded-lg transition-all ${i18n.language === 'en' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-500 hover:text-text-main'}`}>
+                  EN
+                </button>
+                <button onClick={() => i18n.changeLanguage('th')} className={`px-3 py-1.5 rounded-lg transition-all ${i18n.language === 'th' ? 'bg-white dark:bg-white/10 text-accent-primary shadow-sm scale-105' : 'text-gray-400 hover:text-text-main'}`}>
+                  TH
+                </button>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="px-6 md:px-10 pb-10">
+          <div className="max-w-screen-2xl mx-auto">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+              {activeTab === 'overview' && <OverviewTab data={data} />}
+              {activeTab === 'performance' && <PerformanceTab data={data} passcode={passcode} />}
+              {activeTab === 'monitor' && <MonitorTab data={data} />}
+              {activeTab === 'history' && <HistoryTab data={data.history} />}
+            </div>
           </div>
         </div>
       </main>
