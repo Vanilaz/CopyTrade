@@ -110,6 +110,7 @@ struct TradeSignal
    datetime          timestamp;        // Signal creation time
    ulong             signalID;         // Unique signal ID
    ulong             fillTimeMs;       // เวลาที่ Master fill (ms) สำหรับวัด latency
+   double            profit;           // Realized profit (for CLOSE signals)
 
    void Init()
    {

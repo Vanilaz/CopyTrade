@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.0.7 — Smart Mapping, Real Profit & Cleanup (2026-04-12)
+
+**Real Profit Integration (ใหม่!):**
+- **Native Profit Tracking:** ระบบดึงกำไรจริง (Net Profit + Swap + Commission) จาก MT5 Directly มาแสดงผลบน Dashboard ทันที
+- **Active KPI Updates:** ปรับปรุงกการแสดงผลในหน้า Dashboard ให้ตัวเลข $0.00 ในอดีตกลับมาเป็นตัวเลขจริงเมื่อมีสัญญาณปิดออเดอร์ใหม่เข้ามา
+- **Immediate Reporting:** ปรับให้ Server บันทึกผลกำไรลงในระบบ Performance ทันทีที่ได้รับ Signal Close โดยไม่ต้องรอรอบ Heartbeat
+
+**System Maintenance & Cleanup:**
+- **Deep Cleanup Service:** ระบบล้างข้อมูลบัญชีที่ไม่ได้เชื่อมต่อนานเกิน **7 วัน** อัตโนมัติ (Purge stale performance/history data) เพื่อความรวดเร็วของระบบ
+- **UI History Scroll:** ปรับปรุงตารางประวัติการเทรดให้เลื่อนดูได้ (Fixed Height 650px & Sticky Header) เพื่อรองรับข้อมูล Trade History ปริมาณมหาศาล
+
+**Smart Symbol Mapping:**
+- **Smart Alias Normalization:** เพิ่มระบบรู้จำ Alias อัตโนมัติในระดับ Core MQL5 (BTC ↔ XBT, GOLD ↔ XAUUSD)
+- **Cross-Broker Support:** รองรับการแมพจาก Master ที่ใช้ชื่อต่างจาก Slave โดยสิ้นเชิง
+
+---
+
 ## v3.0.6 — UI Refinement & Borderless Design (2026-04-12)
 
 **Institutional UI Refinement (ใหม่!):**

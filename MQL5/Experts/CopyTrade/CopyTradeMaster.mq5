@@ -295,12 +295,18 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
    }
    else if(entry == DEAL_ENTRY_OUT)
    {
-      //--- Position closed
+      //--- Position closed (Full or Partial)
       sig.type = SIGNAL_CLOSE;
       sig.orderType = (dtype == DEAL_TYPE_BUY) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+      
+      // Calculate Real Profit (Profit + Swap + Commission)
+      sig.profit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT) + 
+                   HistoryDealGetDouble(dealTicket, DEAL_SWAP) + 
+                   HistoryDealGetDouble(dealTicket, DEAL_COMMISSION);
 
       CTLog(LOG_INFO, "📤 SIGNAL CLOSE: " + symbol + " " +
-            DoubleToString(lots, 2) + " lots @ " + DoubleToString(price, 5));
+            DoubleToString(lots, 2) + " lots @ " + DoubleToString(price, 5) + 
+            " (Profit: " + DoubleToString(sig.profit, 2) + ")");
             
       if(!BroadcastSignal(sig))
       {
@@ -311,7 +317,7 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
    else if(entry == DEAL_ENTRY_INOUT)
    {
       //--- Position reversed (close + open opposite)
-      // Send close first
+      // 1. Send close for the OUT part
       TradeSignal closeSig;
       closeSig.Init();
       closeSig.masterID   = g_masterID;
@@ -321,20 +327,23 @@ void ProcessDealAdd(const MqlTradeTransaction &trans)
       closeSig.symbol     = symbol;
       closeSig.lots       = lots;
       closeSig.price      = price;
+      closeSig.profit     = HistoryDealGetDouble(dealTicket, DEAL_PROFIT) + 
+                            HistoryDealGetDouble(dealTicket, DEAL_SWAP) + 
+                            HistoryDealGetDouble(dealTicket, DEAL_COMMISSION);
       
+      CTLog(LOG_INFO, "📤 SIGNAL REVERSE-CLOSE: " + symbol + " Profit: " + DoubleToString(closeSig.profit, 2));
       if(!BroadcastSignal(closeSig))
       {
-         CTLog(LOG_WARN, "Enqueueing missed REVERSE-CLOSE signal");
          EnqueueSignal(closeSig);
       }
 
-      // Then open new direction
+      // 2. Then open new direction
       sig.type = SIGNAL_OPEN;
       sig.orderType = (dtype == DEAL_TYPE_BUY) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
+      sig.profit = 0;
 
-      CTLog(LOG_INFO, "📤 SIGNAL REVERSE: " + symbol);
+      CTLog(LOG_INFO, "📤 SIGNAL REVERSE-OPEN: " + symbol);
       
-      // ★ FIX: Only mark as signaled IF successfully broadcasted
       if(BroadcastSignal(sig))
       {
          MarkPositionSignaled(posID);
@@ -506,9 +515,23 @@ void CheckPartialCloses()
             sig.symbol       = g_positions[j].symbol;
             sig.lots         = closedLots;
             sig.closePercent = closePercent;
+            
+            // Try to find the profit of the deal that caused this partial close
+            sig.profit = 0;
+            if(HistorySelectByPosition(ticket))
+            {
+               int total = HistoryDealsTotal();
+               if(total > 0)
+               {
+                  ulong dealTicket = HistoryDealGetTicket(total - 1);
+                  sig.profit = HistoryDealGetDouble(dealTicket, DEAL_PROFIT) + 
+                               HistoryDealGetDouble(dealTicket, DEAL_SWAP) + 
+                               HistoryDealGetDouble(dealTicket, DEAL_COMMISSION);
+               }
+            }
 
-            CTLog(LOG_INFO, "📤 SIGNAL PARTIAL CLOSE: " + g_positions[j].symbol +
-                  " " + DoubleToString(closePercent, 1) + "%");
+            CTLog(LOG_INFO, "📤 SIGNAL PARTIAL CLOSE (Safety Net): " + g_positions[j].symbol +
+                  " " + DoubleToString(closePercent, 1) + "% Profit: " + DoubleToString(sig.profit, 2));
                   
             if(!BroadcastSignal(sig))
             {

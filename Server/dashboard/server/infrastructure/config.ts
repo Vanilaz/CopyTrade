@@ -41,6 +41,7 @@ export const Config = {
   telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
   heartbeatTimeout: 30000,
   httpHeartbeatTimeout: 60000,
+  retentionDays: 7,
   brokerTimezone: process.env.BROKER_TIMEZONE || 'Europe/Athens',
   performanceSaveInterval: 5 * 60 * 1000,  // 5 minutes
 

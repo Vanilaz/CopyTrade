@@ -16,6 +16,7 @@ export interface ISignalStore {
   addToHistory(signal: SignalEntry): void;
   getHistory(limit?: number): SignalEntry[];
   setHistory(history: SignalEntry[]): void;
+  clearAccountHistory(accountId: string): void;
 
   // ─── Sequence ───
   nextSeq(): number;

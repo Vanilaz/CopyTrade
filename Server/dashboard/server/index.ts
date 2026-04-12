@@ -69,7 +69,7 @@ const processHeartbeat = new ProcessHeartbeat(
   () => dashboard.getSync(),
   () => dashboard.getRisk()
 );
-const processSignal = new ProcessSignal(signalStore, signalRouter, broadcaster, null as any); // sender set below
+const processSignal = new ProcessSignal(signalStore, signalRouter, broadcaster, null as any, perfTracker); // sender set below
 const resetPerf = new ResetPerformance(perfTracker, accounts, broadcaster, persistence);
 
 // ═══════════════════════════════════════════════════════
@@ -94,10 +94,11 @@ processSignal.setHistorySaveCallback(() => {
 //  5. Scheduler (periodic tasks)
 // ═══════════════════════════════════════════════════════
 const scheduler = new Scheduler({
-  accounts, perfTracker, signalStore, persistence, notifier, broadcaster,
+  accounts, perfTracker, signalStore, equityTracker, persistence, notifier, broadcaster,
   getStatusFn: () => dashboard.getStatus(),
   heartbeatTimeout: Config.heartbeatTimeout,
   httpHeartbeatTimeout: Config.httpHeartbeatTimeout,
+  retentionDays: Config.retentionDays,
   saveInterval: Config.performanceSaveInterval,
   brokerTimezone: Config.brokerTimezone,
 });

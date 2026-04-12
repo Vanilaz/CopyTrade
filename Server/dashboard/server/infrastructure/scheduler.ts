@@ -8,14 +8,16 @@
 import type { IAccountStore } from '../domain/ports/IAccountStore.js';
 import type { INotifier } from '../domain/ports/INotifier.js';
 import type { IPersistence } from '../domain/ports/IPersistence.js';
-import type { IBroadcaster } from '../domain/ports/IBroadcaster.js';
 import type { PerformanceTracker } from '../domain/services/PerformanceTracker.js';
+import type { EquityTracker } from '../domain/services/EquityTracker.js';
 import type { ISignalStore } from '../domain/ports/ISignalStore.js';
 import { getBrokerDate } from '../domain/services/PerformanceTracker.js';
+import type { IBroadcaster } from '../domain/ports/IBroadcaster.js';
 
 interface SchedulerDeps {
   accounts: IAccountStore;
   perfTracker: PerformanceTracker;
+  equityTracker: EquityTracker;
   signalStore: ISignalStore;
   persistence: IPersistence;
   notifier: INotifier;
@@ -25,6 +27,7 @@ interface SchedulerDeps {
   httpHeartbeatTimeout: number;
   saveInterval: number;
   brokerTimezone: string;
+  retentionDays: number;
 }
 
 export class Scheduler {
@@ -39,8 +42,8 @@ export class Scheduler {
     // ─── Auto-save performance ───
     this.timers.push(setInterval(() => this.savePerformance(), this.deps.saveInterval));
 
-    // ─── Daily report check (every 60s) ───
-    this.timers.push(setInterval(() => this.checkDailyReport(), 60000));
+    // ─── Daily cleanup/report check (every 60s) ───
+    this.timers.push(setInterval(() => this.runDailyTasks(), 60000));
   }
 
   stop(): void {
@@ -85,6 +88,44 @@ export class Scheduler {
 
     if (changed) {
       broadcaster.broadcast('status', this.deps.getStatusFn());
+    }
+  }
+
+  private runDailyTasks(): void {
+    const now = getBrokerDate(this.deps.brokerTimezone);
+    // Run at 23:59 (near end of day)
+    if (now.getHours() === 23 && now.getMinutes() === 59) {
+      this.checkDailyReport();
+      this.runDeepCleanup();
+    }
+  }
+
+  private runDeepCleanup(): void {
+    console.log('[Scheduler] Running deep cleanup...');
+    const now = Date.now();
+    const retentionMs = this.deps.retentionDays * 24 * 60 * 60 * 1000;
+    const { perfTracker, accounts, signalStore } = this.deps;
+    
+    let purgedCount = 0;
+    const allPerf = perfTracker.exportAll();
+    
+    for (const [id, perf] of Object.entries(allPerf)) {
+      // If no heartbeat/update for retention period, and not currently connected
+      const lastActivity = perf.lastUpdate || 0;
+      const isConnected = accounts.getMaster(id) || accounts.getSlave(id);
+      
+      if (!isConnected && (now - lastActivity > retentionMs)) {
+        console.warn(`[Scheduler] Purging stale account data for "${id}" (Inactive for >${this.deps.retentionDays} days)`);
+        perfTracker.deleteAccount(id);
+        this.deps.equityTracker.deleteAccount(id);
+        signalStore.clearAccountHistory(id);
+        purgedCount++;
+      }
+    }
+    
+    if (purgedCount > 0) {
+      console.log(`[Scheduler] Deep cleanup complete. Purged ${purgedCount} stale accounts.`);
+      this.savePerformance(); // Commit changes to disk
     }
   }
 

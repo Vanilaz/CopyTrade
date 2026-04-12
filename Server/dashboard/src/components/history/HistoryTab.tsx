@@ -133,10 +133,10 @@ export function HistoryTab({ data }: HistoryTabProps) {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="data-matrix">
-            <thead>
-              <tr className="border-b border-white/5">
+        <div className="overflow-x-auto max-h-[650px] overflow-y-auto custom-scrollbar relative">
+          <table className="data-matrix w-full">
+            <thead className="sticky top-0 z-20 bg-[#0a0a0b] after:content-[''] after:absolute after:bottom-0 after:left-0 after:right-0 after:h-[1px] after:bg-white/5">
+              <tr>
                 <th>EXECUTION_ID</th>
                 <th>SYMBOL</th>
                 <th>ENTRY_TYPE</th>

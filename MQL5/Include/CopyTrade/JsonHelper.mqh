@@ -35,7 +35,8 @@ string SignalToJson(const TradeSignal &sig)
    json += "\"cp\":" + DoubleToString(sig.closePercent, 2) + ",";
    json += "\"ts\":" + IntegerToString((long)sig.timestamp) + ",";
    json += "\"sigID\":" + IntegerToString((long)sig.signalID) + ",";
-   json += "\"ftMs\":" + IntegerToString((long)sig.fillTimeMs);
+   json += "\"ftMs\":" + IntegerToString((long)sig.fillTimeMs) + ",";
+   json += "\"pft\":" + DoubleToString(sig.profit, 2);
    json += "}";
    return json;
 }
@@ -72,6 +73,7 @@ bool JsonToSignal(string json, TradeSignal &sig)
    sig.timestamp    = (datetime)JsonGetInt(json, "ts");
    sig.signalID     = (ulong)JsonGetInt(json, "sigID");
    sig.fillTimeMs   = (ulong)JsonGetInt(json, "ftMs");
+   sig.profit       = JsonGetDouble(json, "pft");
 
    return (sig.version != "" && sig.masterID != "");
 }

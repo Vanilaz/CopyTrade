@@ -10,6 +10,7 @@ import { createSignalEntry, isCloseSignal } from '../domain/entities/Signal.js';
 import type { ISignalStore } from '../domain/ports/ISignalStore.js';
 import type { IBroadcaster } from '../domain/ports/IBroadcaster.js';
 import type { SignalRouter } from '../domain/services/SignalRouter.js';
+import type { PerformanceTracker } from '../domain/services/PerformanceTracker.js';
 
 export interface SignalSender {
   sendToSlave(slaveId: string, socketHandle: unknown, message: unknown): void;
@@ -25,6 +26,7 @@ export class ProcessSignal {
     private router: SignalRouter,
     private broadcaster: IBroadcaster,
     private sender: SignalSender,
+    private perfTracker: PerformanceTracker,
   ) {}
 
   setHistorySaveCallback(fn: () => void): void {
@@ -42,6 +44,7 @@ export class ProcessSignal {
     // 3. Add to history if close signal
     if (isCloseSignal(signal)) {
       this.signalStore.addToHistory(signal);
+      this.perfTracker.recordTrade(masterID, signal.profit);
       this.scheduleHistorySave();
     }
 

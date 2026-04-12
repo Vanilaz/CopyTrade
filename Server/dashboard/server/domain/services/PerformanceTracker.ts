@@ -134,6 +134,26 @@ export class PerformanceTracker {
     return perf;
   }
 
+  recordTrade(accountId: string, profit: number): void {
+    const perf = this.perfMap.get(accountId);
+    if (!perf) return;
+
+    perf.totalTrades++;
+    if (profit > 0) perf.winTrades++;
+    else if (profit < 0) perf.lossTrades++;
+    // If profit is exactly 0, we count it as a trade but neither win nor loss (neutral)
+    
+    perf.lastUpdate = Date.now();
+    console.log(`[PerformanceTracker] Recorded trade for ${accountId}: profit=${profit.toFixed(2)}`);
+  }
+
+  deleteAccount(accountId: string): void {
+    const deleted = this.perfMap.delete(accountId);
+    if (deleted) {
+      console.log(`[PerformanceTracker] Purged data for account: ${accountId}`);
+    }
+  }
+
   reset(accountId?: string | null): void {
     const resetOne = (perf: AccountPerformance) => {
       const bal = perf.currentBalance || 0;

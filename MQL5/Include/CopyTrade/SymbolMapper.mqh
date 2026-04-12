@@ -40,6 +40,7 @@ public:
    void              SetPrefix(string prefix)  { m_prefix = prefix; }
    void              SetAutoDetect(bool auto_) { m_autoDetect = auto_; }
    bool              LoadMapFile(string filename);
+   void              NormalizeAlias(string baseSymbol, string &aliases[]);
 
    //--- Mapping
    string            MapSymbol(string masterSymbol);
@@ -179,8 +180,30 @@ string CSymbolMapper::MapSymbol(string masterSymbol)
             return trySymbol;
          }
       }
+
+      // 6. Smart Alias Matching (e.g. BTC <-> XBT)
+      string aliases[];
+      NormalizeAlias(baseMaster, aliases);
+      for(int a = 0; a < ArraySize(aliases); a++)
+      {
+         string aliasBase = aliases[a];
+         for(int i = 0; i < ArraySize(suffixes); i++)
+         {
+            string trySymbol = aliasBase + suffixes[i];
+            if(IsSymbolAvailable(trySymbol))
+            {
+               CTLog(LOG_INFO, "Smart alias-detected mapping: " + masterSymbol + " (" + baseMaster + ") → " + trySymbol);
+               int idx = m_mapSize;
+               m_mapSize++;
+               ArrayResize(m_map, m_mapSize);
+               m_map[idx].masterSymbol = masterSymbol;
+               m_map[idx].slaveSymbol  = trySymbol;
+               return trySymbol;
+            }
+         }
+      }
       
-      // 6. Deep Scan (Fuzzy Match) for completely unknown broker formats
+      // 7. Deep Scan (Fuzzy Match) for completely unknown broker formats
       int total = SymbolsTotal(false);
       string bestMatch = "";
       int bestMatchLen = 0;
@@ -285,6 +308,44 @@ bool CSymbolMapper::AutoDetectBrokerFormat()
       }
    }
    return false;
+}
+
+//+------------------------------------------------------------------+
+//| Normalize common aliases (BTC <-> XBT, GOLD <-> XAUUSD, etc.)     |
+//+------------------------------------------------------------------+
+void CSymbolMapper::NormalizeAlias(string symbol, string &aliases[])
+{
+   ArrayResize(aliases, 0);
+   string temp = symbol;
+   
+   // BTC <-> XBT
+   if(StringReplace(temp, "BTC", "XBT") > 0) {
+      int idx = ArraySize(aliases); ArrayResize(aliases, idx+1); aliases[idx] = temp;
+   }
+   temp = symbol;
+   if(StringReplace(temp, "XBT", "BTC") > 0) {
+      int idx = ArraySize(aliases); ArrayResize(aliases, idx+1); aliases[idx] = temp;
+   }
+   
+   // GOLD <-> XAUUSD
+   temp = symbol;
+   if(StringReplace(temp, "GOLD", "XAUUSD") > 0) {
+      int idx = ArraySize(aliases); ArrayResize(aliases, idx+1); aliases[idx] = temp;
+   }
+   temp = symbol;
+   if(StringReplace(temp, "XAUUSD", "GOLD") > 0) {
+      int idx = ArraySize(aliases); ArrayResize(aliases, idx+1); aliases[idx] = temp;
+   }
+   
+   // Silver <-> XAGUSD
+   temp = symbol;
+   if(StringReplace(temp, "SILVER", "XAGUSD") > 0) {
+      int idx = ArraySize(aliases); ArrayResize(aliases, idx+1); aliases[idx] = temp;
+   }
+   temp = symbol;
+   if(StringReplace(temp, "XAGUSD", "SILVER") > 0) {
+      int idx = ArraySize(aliases); ArrayResize(aliases, idx+1); aliases[idx] = temp;
+   }
 }
 
 //+------------------------------------------------------------------+

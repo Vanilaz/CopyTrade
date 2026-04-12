@@ -38,6 +38,16 @@ export class InMemorySignalStore implements ISignalStore {
     this.history = history;
   }
 
+  clearAccountHistory(accountId: string): void {
+    const initial = this.signals.length + this.history.length;
+    this.signals = this.signals.filter(s => s.masterID !== accountId);
+    this.history = this.history.filter(s => s.masterID !== accountId);
+    const deleted = initial - (this.signals.length + this.history.length);
+    if (deleted > 0) {
+      console.log(`[InMemorySignalStore] Cleared ${deleted} signals for account: ${accountId}`);
+    }
+  }
+
   nextSeq(): number { return ++this.seq; }
   currentSeq(): number { return this.seq; }
 }

@@ -52,6 +52,8 @@ NIKKEI225,JPN225
 # --- คริปโต (Cryptocurrencies) ---
 BTCUSD,BITCOIN
 ETHUSD,ETHEREUM
+BTCUSD,XBTUSD
+XBTUSD,BTCUSD
 
 # ========================================================
 # หมายเหตุ: 

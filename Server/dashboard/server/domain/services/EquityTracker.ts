@@ -18,6 +18,13 @@ export class EquityTracker {
   private history = new Map<string, EquitySnapshot[]>();
   private lastSnapshot = new Map<string, number>();
   private lastDownsample = new Map<string, number>();
+  
+  deleteAccount(accountId: string): void {
+    this.history.delete(accountId);
+    this.lastSnapshot.delete(accountId);
+    this.lastDownsample.delete(accountId);
+    console.log(`[EquityTracker] Purged chart history for account: ${accountId}`);
+  }
 
   snapshot(accountId: string, equity: number, balance: number): void {
     const now = Date.now();

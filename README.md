@@ -1,7 +1,7 @@
 # CopyTrade MT5 — ระบบ Copy Trade ข้ามเครื่อง ข้าม Broker (Institutional Grade)
 
-> **Version 3.0.6** — UI Refinement & Institutional Stabilization  
-> สถาปัตยกรรมใหม่ Neural HUD, Hybrid Console Layout, Progressive Web App (Installable), React 19
+> **Version 3.0.7** — Smart Mapping, Real Profit & Cleanup  
+> ดึงกำไรจริงจาก MT5, ระบบล้างข้อมูลบัญชีร้าง (7 วัน), ตาราง History แบบ Scrollable
 
 ---
 
@@ -10,6 +10,7 @@
 | Feature | รายละเอียด |
 |---|---|
 | ✅ **Fuzzy Deep Scan** | จับคู่ชื่อ Symbol ข้าม Broker อัตโนมัติ (เช่น XAUUSD -> XAUUSD.std) |
+| ✅ **Smart Alias Mapping** | ระบบรู้จำ Alias อัตโนมัติ (BTC ↔ XBT, GOLD ↔ XAUUSD) ไม่ต้องตั้งค่าเพิ่ม |
 | ✅ **Local Copy** | Copy ในเครื่องเดียวกัน / VPS เดียวกัน ผ่าน Shared Files (เร็ว <10ms) |
 | ✅ **Remote Copy** | Copy ข้าม VPS ผ่าน TCP Socket + Relay Server |
 | ✅ **Price Matching** | จับราคา fill จริงของ Master ส่งให้ Slave ด้วย deviation 30 pt |
@@ -17,6 +18,8 @@
 | ✅ **Exact Match SL/TP** | คำนวณ SL/TP ให้ Slave ตรงกับ Master เป๊ะๆ |
 | ✅ **Auto-Reconnect** | เน็ตหลุด/เซิร์ฟเวอร์รีสตาร์ท EA จะเชื่อมต่อกลับอัตโนมัติ |
 | ✅ **Safety Net** | ตรวจจับ Position ที่หลุดจาก OnTradeTransaction อัตโนมัติ |
+| ✅ **Real Profit** | แสดงกำไรสุทธิรวม Swap/Comm จริงบน Dashboard จาก MT5 |
+| ✅ **Deep Cleanup** | ล้างข้อมูลบัญชีที่ไม่ได้เชื่อมต่อเกิน 7 วันอัตโนมัติ |
 | ✅ **Smart Sync** | เลือก sync position เดิม หรือ copy เฉพาะไม้ใหม่ |
 | ✅ **Bento Dashboard** | React 19 + Glassmorphism — แสดงสถานะบัญชีแบบ Real-time |
 | ✅ **Prop Firm Analytics** | ระบบคำนวณ Win Rate, Total Realized PnL, PnL by Symbol Bar Chart สดๆ |
@@ -356,9 +359,10 @@ rm -rf server.js modules src public package.json package-lock.json start-server.
 
 | Version | วันที่ | สรุป |
 |---|---|---|
-| **v3.0.4** | 2026-04-11 | **Institutional HUD Architecture**: Overhaul UI/UX สไตล์ HUD, รองรับ PWA (Install App) |
-| **v3.0.3** | 2026-04-11 | Prop Firm Analytics, Live Neural Relay, Stability Fixes |
-| **v3.0** | 2026-04-11 | Clean Architecture (Hexagonal), TypeScript ทั้งระบบ, Unified Project |
+| **v3.0.7** | 2026-04-12 | **Smart Alias Mapping**: ระบบรู้จำ BTC/XBT, GOLD/XAUUSD อัตโนมัติ รองรับ Lirunex/Interstellar |
+| **v3.0.6** | 2026-04-12 | **Institutional UI Refinement**: ดีไซน์แบบ Borderless, Glassmorphism Optimization |
+| **v3.0.5** | 2026-04-12 | Slave Tracking & Relationship Visualization |
+| **v3.0** | 2026-04-10 | Clean Architecture (Hexagonal), TypeScript ทั้งระบบ, Unified Project |
 
 ---
 

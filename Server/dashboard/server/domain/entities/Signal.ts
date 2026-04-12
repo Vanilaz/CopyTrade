@@ -16,6 +16,7 @@ export interface SignalEntry {
   fillPrice: number;
   ticket: number;
   fillTimeMs: number;
+  profit: number;
 }
 
 export interface RawSignalMessage {
@@ -28,6 +29,8 @@ export interface RawSignalMessage {
   price?: number;
   fp?: number;        // fill price
   ticket?: number;
+  ftMs?: number;      // fill time ms
+  pft?: number;       // profit
 }
 
 /**
@@ -44,7 +47,8 @@ export function createSignalEntry(raw: RawSignalMessage, masterID: string, seq: 
     price: raw.price || 0,
     fillPrice: raw.fp || raw.price || 0,
     ticket: raw.ticket || 0,
-    fillTimeMs: 0,
+    fillTimeMs: raw.ftMs || 0,
+    profit: raw.pft || 0,
   };
 }
 
