@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.0.6 — UI Refinement & Borderless Design (2026-04-12)
+
+**Institutional UI Refinement (ใหม่!):**
+- **Borderless Layout:** นำเส้นขอบ (Borders) บริเวณ Sidebar, Topbar และ Switchers ออกทั้งหมดเพื่อให้ดูเป็น Glassmorphism ที่นวลตาและเป็นอันหนึ่งอันเดียวกันมากขึ้นตามความต้องการของผู้ใช้
+- **Visual Optimization:** ปรับปรุงความสมดุลของ UI โดยการใช้ Layer Elevation (Shadows/Glow) และ Blur แทนเส้นขอบแข็ง ทำให้ข้อมูล Telemetry และส่วนควบคุมดูโดดเด่นขึ้น
+
+---
+
 ## v3.0.5 — Slave Tracking & Relationship Visualization (2026-04-12)
 
 **Slave Tracking Visualization (ใหม่!):**

@@ -190,7 +190,7 @@ function App() {
       <div className="noise-overlay" />
       
       {/* ─── Desktop Sidebar ─── */}
-      <aside className="hidden md:flex flex-col w-64 bg-bg-surface/90 backdrop-blur-3xl border-r border-premium z-50 shrink-0 relative">
+      <aside className="hidden md:flex flex-col w-64 bg-bg-surface/90 backdrop-blur-3xl z-50 shrink-0 relative">
         {/* Sidebar Background HUD Decor */}
         <div className="absolute inset-0 opacity-10 pointer-events-none overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-primary to-transparent" />
@@ -267,7 +267,7 @@ function App() {
       {/* ─── Main Content Area ─── */}
       <main className="flex-1 flex flex-col min-w-0 bg-bg-base relative">
         {/* Desktop Header / Topbar */}
-        <header className="hidden md:flex sticky top-0 h-24 bg-bg-base/40 backdrop-blur-2xl border-b border-premium/50 z-40 items-center justify-between px-12 shrink-0">
+        <header className="hidden md:flex sticky top-0 h-24 bg-bg-base/40 backdrop-blur-2xl z-40 items-center justify-between px-12 shrink-0">
           <div className="flex flex-col">
             <h2 className="text-2xl font-black tracking-tighter text-text-main flex items-center gap-3">
               {tabs.find(t => t.id === activeTab)?.name}
@@ -280,7 +280,7 @@ function App() {
 
           <div className="flex items-center gap-10">
             {/* Status Cluster */}
-            <div className="flex items-center gap-8 pr-8 border-r border-premium/50">
+            <div className="flex items-center gap-8 pr-8">
               <div className="flex flex-col items-end">
                 <div className="flex items-center gap-3">
                   <div className={`size-1.5 rounded-full ${connectionStatus === 'connected' ? 'bg-accent-success shadow-[0_0_10px_#22c55e] animate-pulse' : 'bg-accent-danger shadow-[0_0_10px_#ef4444]'}`} />
@@ -297,7 +297,7 @@ function App() {
 
             <div className="flex items-center gap-6">
               {/* Institutional Switchers */}
-              <div className="flex items-center bg-black/20 dark:bg-white/[0.02] border border-premium p-1.5 rounded-2xl gap-1">
+              <div className="flex items-center bg-black/20 dark:bg-white/[0.02] p-1.5 rounded-2xl gap-1">
                 {['light', 'system', 'dark'].map((m) => (
                   <button
                     key={m}
@@ -311,7 +311,7 @@ function App() {
                 ))}
               </div>
 
-              <div className="flex items-center bg-black/20 dark:bg-white/[0.02] border border-premium p-1.5 rounded-2xl text-[11px] font-black font-mono">
+              <div className="flex items-center bg-black/20 dark:bg-white/[0.02] p-1.5 rounded-2xl text-[11px] font-black font-mono">
                 {['en', 'th'].map((l) => (
                   <button
                     key={l}

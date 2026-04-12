@@ -1,6 +1,6 @@
 # CopyTrade MT5 — ระบบ Copy Trade ข้ามเครื่อง ข้าม Broker (Institutional Grade)
 
-> **Version 3.0.5** — Slave Tracking & Relationship Visualization  
+> **Version 3.0.6** — UI Refinement & Institutional Stabilization  
 > สถาปัตยกรรมใหม่ Neural HUD, Hybrid Console Layout, Progressive Web App (Installable), React 19
 
 ---
@@ -23,7 +23,7 @@
 | ✅ **Drawdown Guard** | ระบบแสดง % Drawdown ถอยหลังสู่ 5% ของเงินทุนรายวันแบบ Real-time |
 | ✅ **Sync Auditor** | ติดตามสถานะ Master-Slave ตรวจสอบไม้หาย/สถานะเลียนแบบได้สมบูรณ์แบบระดับ ms |
 | ✅ **Slave Tracking:** | **Neural Relationship Logging:** แสดงผล Master ID ที่ Slave กำลังติดตามอยู่บน Dashboard ทันที ช่วยให้การตรวจสอบโครงข่ายการเทรด (Node Cluster) ทำได้ง่ายและแม่นยำขึ้น |
-| ✅ **✨ ฟีเจอร์ใหม่ระดับ Institutional HUD (v3.0.4):** | **Neural HUD Interface:** หน้าตาโปรแกรมสไตล์ Terminal กึ่งโปร่งใส (Glassmorphism) พร้อมเส้นสแกนและมุมฉาก (Brackets) ระดับมืออาชีพ <br> **PWA Installation:** คุณสามารถกดปุ่ม **"Install App"** บน Address Bar ของ Chrome เพื่อติดตั้ง Dashboard ลงเครื่องเป็นแอปพลิเคชันแยกได้ทันที <br> **Hybrid Console Layout:** แยกส่วนควบคุมระบบ (Topbar) และส่วนจัดการพอร์ต (Sidebar) ออกจากกันอย่างชัดเจน เพื่อประสิทธิภาพสูงสุดในการ Monitor ข้อมูล <br> **TradingView Mode:** กราฟพอร์ตจะขยับทุกๆ 1 วินาที ให้ความรู้สึกเหมือน SITUATION ROOM ระดับโลก <br> **Auto-Reconnect:** ระบบจะเชื่อมต่อใหม่เองภายใน 3 วินาทีหากมีการรีสตาร์ทเซิร์ฟเวอร์ |
+| ✅ **✨ ฟีเจอร์ใหม่ระดับ Institutional HUD (v3.0.6):** | **Borderless Glassmorphism:** นำเส้นขอบ (Borders) ที่รบกวนสายตาออก เพื่อความคลีนและโฟกัสที่ข้อมูล Telemetry ได้ดียิ่งขึ้น <br> **Neural HUD Interface:** หน้าตาโปรแกรมสไตล์ Terminal กึ่งโปร่งใส พร้อมเส้นสแกนและมุมฉากระดับมืออาชีพ <br> **PWA Installation:** ติดตั้ง Dashboard เป็นแอปพลิเคชันแยกได้ทันที <br> **Hybrid Console Layout:** แยกส่วนควบคุมและส่วนจัดการพอร์ตออกจากกันอย่างชัดเจน |
 | ✅ **HTTP Transport** | รองรับ WebRequest สำหรับ Cloud/Serverless |
 | ✅ **Auth Token** | ป้องกัน Unauthorized Access ทั้ง TCP และ HTTP |
 | ✅ **Clean Architecture** | Hexagonal Pattern — แยก Domain, Application, Adapters ชัดเจน |
