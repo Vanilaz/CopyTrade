@@ -80,6 +80,7 @@ export interface AccountPerformance {
   positions: number;
   marginLevel: number;
   lastUpdate: number;
+  subscribedTo?: string;
 }
 
 // ═══ Sync Monitor ═══

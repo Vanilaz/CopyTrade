@@ -311,6 +311,12 @@ function AccountItem({ acct, isTop }: { acct: any, isTop?: boolean }) {
           <div className={`text-[9px] font-black uppercase tracking-[0.2em] ${isTop ? 'text-accent-success' : 'text-gray-600'}`}>
             {isTop ? 'ELITE_PERFORMER' : 'ACTIVE_NODE'}
           </div>
+          {!isMaster && acct.subscribedTo && (
+            <div className="flex items-center gap-1 mt-1">
+              <span className="text-[8px] font-black text-accent-primary uppercase tracking-tighter opacity-70">FOLLOWING:</span>
+              <span className="text-[9px] font-black text-white/50 uppercase tracking-tighter tabular-nums bg-white/5 px-1.5 py-0.5 rounded border border-white/5">MST_{acct.subscribedTo}</span>
+            </div>
+          )}
         </div>
       </div>
       <div className="text-right z-10 flex flex-col items-end">

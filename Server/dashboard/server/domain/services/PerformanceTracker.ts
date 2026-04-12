@@ -171,8 +171,12 @@ export class PerformanceTracker {
   getSummaries(accounts: IAccountStore) {
     const result: ReturnType<typeof toPerformanceSummary>[] = [];
     this.perfMap.forEach((perf, id) => {
-      if (!accounts.getMaster(id) && !accounts.getSlave(id)) return;
-      result.push(toPerformanceSummary(perf));
+      const master = accounts.getMaster(id);
+      const slave = accounts.getSlave(id);
+      if (!master && !slave) return;
+      
+      const sub = slave ? slave.subscribedTo : undefined;
+      result.push(toPerformanceSummary(perf, sub));
     });
     return result;
   }

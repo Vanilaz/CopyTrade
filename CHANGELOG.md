@@ -1,5 +1,14 @@
 # Changelog
 
+## v3.0.5 — Slave Tracking & Relationship Visualization (2026-04-12)
+
+**Slave Tracking Visualization (ใหม่!):**
+- **Relationship Mapping:** เพิ่มการแสดงผล "FOLLOWING: MST_[ID]" ภายใต้เลขบัญชี Slave ในหน้า Overview เพื่อให้ผู้ใช้ทราบทันทีว่า Slave แต่ละตัวกำลังติดตาม Master รายใด
+- **Backend Data Integration:** ปรับปรุง Domain Entity และ Performance Tracker ให้สามารถดึงข้อมูลการสมัครสมาชิก (Subscription) จาก Account Store และส่งผ่าน WebSocket มายัง Dashboard ได้แบบเรียลไทม์
+- **Zero-Latency Display:** ข้อมูลการติดตามจะถูกอัปเดตทันทีเมื่อมีการสมัครสัญญาณ หรือมีการเปลี่ยน Master บนตัว EA
+
+---
+
 ## v3.0.4 — Institutional HUD Architecture Overhaul (2026-04-11)
 
 **Neural HUD Design System (ใหม่!):**

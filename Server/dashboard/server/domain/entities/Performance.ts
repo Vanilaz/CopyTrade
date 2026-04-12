@@ -65,6 +65,7 @@ export interface PerformanceSummary {
   positions: number;
   marginLevel: number;
   lastUpdate: number;
+  subscribedTo?: string;
 }
 
 export interface EquitySnapshot {
@@ -94,7 +95,7 @@ export function createPerformance(accountId: string, role: string): AccountPerfo
 /**
  * Compute PerformanceSummary from raw AccountPerformance
  */
-export function toPerformanceSummary(perf: AccountPerformance): PerformanceSummary {
+export function toPerformanceSummary(perf: AccountPerformance, subscribedTo?: string): PerformanceSummary {
   const netBal = perf.lastNetBalance ?? perf.currentBalance;
   const dayStartNet = perf.dayStartNetBalance ?? perf.dayStartBalance;
   const weekStartNet = perf.weekStartNetBalance ?? perf.weekStartBalance;
@@ -114,5 +115,6 @@ export function toPerformanceSummary(perf: AccountPerformance): PerformanceSumma
     winRate, maxDrawdown: perf.maxDrawdown, maxDrawdownPct: perf.maxDrawdownPct.toFixed(2),
     currentDD: currentDD.toFixed(2), positions: perf.positions,
     marginLevel: perf.marginLevel, lastUpdate: perf.lastUpdate,
+    subscribedTo,
   };
 }
